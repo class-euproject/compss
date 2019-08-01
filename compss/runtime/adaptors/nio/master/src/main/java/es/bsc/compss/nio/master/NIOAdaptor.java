@@ -38,6 +38,7 @@ import es.bsc.compss.nio.NIOUri;
 import es.bsc.compss.nio.commands.workerfiles.CommandWorkerDebugFilesDone;
 import es.bsc.compss.nio.exceptions.SerializedObjectException;
 import es.bsc.compss.nio.master.configuration.NIOConfiguration;
+import es.bsc.compss.nio.master.starters.Starter;
 import es.bsc.compss.nio.requests.DataRequest;
 import es.bsc.compss.nio.requests.MasterDataRequest;
 import es.bsc.compss.types.BindingObject;
@@ -384,7 +385,7 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
     @Override
     public void setWorkerIsReady(String nodeName) {
         LOGGER.info("Notifying that worker is ready '" + nodeName + "'");
-        WorkerStarter ws = WorkerStarter.getWorkerStarter(nodeName);
+        Starter ws = Starter.getWorkerStarter(nodeName);
         if (ws != null) {
             ws.setWorkerIsReady();
         } else {

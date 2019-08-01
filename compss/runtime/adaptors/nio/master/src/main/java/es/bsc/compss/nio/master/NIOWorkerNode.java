@@ -37,6 +37,10 @@ import es.bsc.compss.nio.commands.CommandShutdown;
 import es.bsc.compss.nio.commands.tracing.CommandGeneratePackage;
 import es.bsc.compss.nio.commands.workerfiles.CommandGenerateWorkerDebugFiles;
 import es.bsc.compss.nio.master.configuration.NIOConfiguration;
+import es.bsc.compss.nio.master.starters.DockerStarter;
+import es.bsc.compss.nio.master.starters.LXCStarter;
+import es.bsc.compss.nio.master.starters.Starter;
+import es.bsc.compss.nio.master.starters.WorkerStarter;
 import es.bsc.compss.nio.master.utils.NIOParamFactory;
 import es.bsc.compss.nio.requests.DataRequest;
 import es.bsc.compss.nio.requests.MasterDataRequest;
@@ -68,6 +72,7 @@ import es.bsc.compss.util.ErrorManager;
 import es.bsc.compss.util.TraceEvent;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.Semaphore;
 
 import org.apache.logging.log4j.LogManager;
@@ -86,7 +91,7 @@ public class NIOWorkerNode extends COMPSsWorker {
     private final NIOConfiguration config;
     private final NIOAdaptor commManager;
     protected boolean started = false;
-    private WorkerStarter workerStarter;
+    private Starter workerStarter;
 
 
     /**
@@ -110,7 +115,16 @@ public class NIOWorkerNode extends COMPSsWorker {
     public void start() throws InitNodeException {
         NIONode n = null;
         try {
-            this.workerStarter = new WorkerStarter(this);
+            switch (Optional.ofNullable(config.getProperty("Engine")).orElse("").toLowerCase()) {
+                case "docker":
+                    this.workerStarter = new DockerStarter(this);
+                    break;
+                case "lxc":
+                    this.workerStarter = new LXCStarter(this);
+                    break;
+                default:
+                    this.workerStarter = new WorkerStarter(this);
+            }
             synchronized (this.workerStarter) {
                 n = this.workerStarter.startWorker();
                 this.node = n;

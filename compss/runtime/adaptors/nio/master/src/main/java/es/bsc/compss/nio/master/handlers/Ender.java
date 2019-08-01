@@ -17,12 +17,12 @@
 package es.bsc.compss.nio.master.handlers;
 
 import es.bsc.compss.nio.master.NIOWorkerNode;
-import es.bsc.compss.nio.master.WorkerStarter;
+import es.bsc.compss.nio.master.starters.Starter;
 
 
 public class Ender extends Thread {
 
-    private final WorkerStarter workerStarter;
+    private final Starter workerStarter;
     private final NIOWorkerNode node;
     private final int pid;
 
@@ -34,7 +34,7 @@ public class Ender extends Thread {
      * @param node Associated node.
      * @param pid Associated PID.
      */
-    public Ender(WorkerStarter workerStarter, NIOWorkerNode node, int pid) {
+    public Ender(Starter workerStarter, NIOWorkerNode node, int pid) {
         this.workerStarter = workerStarter;
         this.node = node;
         this.pid = pid;
