@@ -233,12 +233,13 @@ and runs its tests. **Note**: the testing scripts assumes you have named the tes
 
 :envelope: COMPSs Support <support-compss@bsc.es> :envelope:
 
-Workflows and Distributed Computing Group (WDC)
-
-Department of Computer Science (CS)
-
 Barcelona Supercomputing Center (BSC) 
 
+
+<!-- Acknowledgements -->
+# Acknowledgements
+
+This work has been supported by the EU H2020 project CLASS, contract #780622.
 
 <!-- LINKS -->
 [1]: http://compss.bsc.es
