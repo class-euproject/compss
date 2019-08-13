@@ -3,6 +3,7 @@ package es.bsc.compss.nio.master.starters;
 import es.bsc.comm.nio.NIONode;
 import es.bsc.compss.exceptions.InitNodeException;
 import es.bsc.compss.nio.master.NIOWorkerNode;
+import es.bsc.compss.nio.master.handlers.ProcessOut;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ public class LXCStarter extends ContainerStarter {
 
     private String imageName;
     private boolean pullIfNeeded;
+    private String containerId;
 
 
     /**
@@ -38,14 +40,20 @@ public class LXCStarter extends ContainerStarter {
     }
 
     @Override
+    protected String[] getStopCommand(int pid) {
+        return new String[] { "lxc",
+            "stop",
+            this.containerId };
+    }
+
+    @Override
     protected NIONode distribute(String master, Integer minPort, Integer maxPort) throws InitNodeException {
-        // TODO: minPort?????!?!?!?!
-        final String[] command = getStartCommand(minPort, master);
-        String containerId = "compss-" + DEPLOYMENT_ID.split("-")[0] + "-" + minPort;
+        final String[] command = getStartCommand(43001, master);
+        this.containerId = "compss-" + DEPLOYMENT_ID.split("-")[0];
         List<String> cmd = new ArrayList<>();
         cmd.add(LXC_SCRIPT_PATH);
         cmd.add("--name");
-        cmd.add(containerId);
+        cmd.add(this.containerId);
         cmd.add("--image");
         cmd.add(this.imageName);
         cmd.add("--master");
@@ -53,6 +61,8 @@ public class LXCStarter extends ContainerStarter {
             && (!MASTER_NAME_PROPERTY.equals("null"))) {
             // Set the hostname from the defined property
             cmd.add(MASTER_NAME_PROPERTY);
+        } else if (INFERRED_MASTER_NAME != null) {
+            cmd.add(INFERRED_MASTER_NAME);
         } else {
             cmd.add("localhost");
         }
@@ -60,6 +70,7 @@ public class LXCStarter extends ContainerStarter {
         cmd.add(this.nw.getName());
         cmd.add("--storage");
         cmd.add("compss:compss:/tmp/COMPSsWorker");
+        cmd.add("--as-public-server");
 
         if (this.nw.getUser() != null && !this.nw.getUser().equals("")) {
             cmd.add("--user");
@@ -70,17 +81,23 @@ public class LXCStarter extends ContainerStarter {
             cmd.add("--pull");
         }
 
-        cmd.add("--ports");
-        cmd.add(String.format("%1$d:%1$d", minPort));
+        // cmd.add("--ports"); cmd.add(String.format("%1$d:%1$d", minPort));
+        cmd.add("--range");
+        cmd.add(String.format("%d-%d:43001", minPort, maxPort));
         cmd.add("--");
         cmd.addAll(Arrays.asList("/bin/sh", "-c", "mkdir -p " + nw.getWorkingDir() + "/log && " + "mkdir -p "
-            + nw.getWorkingDir() + "/jobs && " + String.join(" ", command) + " > /unai.txt"));
+            + nw.getWorkingDir() + "/jobs && " + String.join(" ", command)));
 
         LOGGER.debug("Running script: " + String.join(" ",
             cmd.stream().map(s -> s.contains(" ") ? "\"" + s + "\"" : s).collect(Collectors.toList())));
-        this.runRemoteCommand(cmd);
+        ProcessOut pOut = this.runRemoteCommand(cmd);
+        if (pOut.getExitValue() != 0) {
+            throw new InitNodeException(pOut.getError());
+        }
+        String[] output = pOut.getOutput().split("\n");
+        LOGGER.info("Chosen port is " + output[output.length - 1]);
 
         // return containerId;
-        return new NIONode(this.nw.getName(), minPort);
+        return new NIONode(this.nw.getName(), Integer.parseInt(output[output.length - 1]));
     }
 }

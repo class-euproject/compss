@@ -427,4 +427,22 @@ public class WorkerStarter extends Starter {
 
     }
 
+    @Override
+    protected String[] getStopCommand(int pid) {
+        String[] cmd = new String[2];
+        String installDir = this.nw.getInstallDir();
+
+        // Send SIGTERM to allow ShutdownHooks on Worker...
+        // Send SIGKILL to all child processes of 'pid'
+        // and send a SIGTERM to the parent process
+        // ps --ppid 2796 -o pid= | awk '{ print $1 }' | xargs kill -15 <--- kills all childs of ppid
+        // kill -15 2796 kills the parentpid
+        // necessary to check whether it has file separator or not? /COMPSs////Runtime == /COMPSs/Runtime in bash
+        cmd[0] = installDir + (installDir.endsWith(File.separator) ? "" : File.separator) + CLEAN_SCRIPT_PATH
+            + CLEAN_SCRIPT_NAME;
+        cmd[1] = String.valueOf(pid);
+
+        return cmd;
+    }
+
 }

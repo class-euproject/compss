@@ -149,7 +149,7 @@ fi
 LAUNCH_COMMAND=""
 for ARG in "$@"
 do
-    if [ "$ARG" != "$(echo $ARG | sed 's/ //g')" ]; then
+    if [ "$ARG" != "$(echo ${ARG} | sed 's/ //g')" ]; then
         LAUNCH_COMMAND="${LAUNCH_COMMAND} \"$ARG\""
     else
         LAUNCH_COMMAND="${LAUNCH_COMMAND} $ARG"
@@ -166,7 +166,7 @@ fi
 
 if [ -z "${CONTAINER_NAME}" ]; then
     SLASH_AMOUNT=$(charamount "${IMAGE_NAME}" "/")
-    CONTAINER_NAME="$(echo $IMAGE_NAME | cut -d"/" -f$(($SLASH_AMOUNT + 1)) | cut -d":" -f1)-$(uuidgen | cut -d"-" -f1)"
+    CONTAINER_NAME="$(echo ${IMAGE_NAME} | cut -d"/" -f$(($SLASH_AMOUNT + 1)) | cut -d":" -f1)-$(uuidgen | cut -d"-" -f1)"
     warn "The container name was not defined. Automatically defined to ${CONTAINER_NAME}"
 fi
 
@@ -176,7 +176,7 @@ if [ "$PUSH_IMAGE" = "true" ]; then
     fi
     if [ -z "$REPOSITORY" ]; then
         warn "The image has to be pushed, but no repository was defined. It will be pushed to the DockerHub"
-        PUSH_FAILED=`$DOCKER push ${IMAGE_NAME} | echo $?`
+        PUSH_FAILED=`${DOCKER} push ${IMAGE_NAME} | echo $?`
         if [ ${PUSH_FAILED} -ne 0 ]; then
             warn "The image could not be pushed. The repository might be down."
             warn "The execution will carry on, assuming the images might already be in the worker."
@@ -185,11 +185,11 @@ if [ "$PUSH_IMAGE" = "true" ]; then
         CLEAN_IMAGE_NAME=$(echo "$IMAGE_NAME" | cut -d: -f1)
         CLEAN_IMAGE_TAG=$(echo "$IMAGE_NAME" | cut -d: -f2)
         REPO_OUTPUT=$(curl --fail --silent ${REPOSITORY}/v2/${CLEAN_IMAGE_NAME}/tags/list)
-        REPO_TAGS=$(echo ${REPO_OUTPUT} | cut -b$(($(echo $REPO_OUTPUT | grep -bo "tags\"\:\[" | sed 's/:.*$//') + 8))- | cut -d] -f1)
+        REPO_TAGS=$(echo ${REPO_OUTPUT} | cut -b$(($(echo ${REPO_OUTPUT} | grep -bo "tags\"\:\[" | sed 's/:.*$//') + 8))- | cut -d] -f1)
         if [ $(echo ${REPO_TAGS} | grep -q ${CLEAN_IMAGE_TAG} && echo true || echo false) = "false" ]; then
             warn "The image is not available in the repository. Pushing."
-            $DOCKER tag ${IMAGE_NAME} ${REPOSITORY}/${IMAGE_NAME}
-            $DOCKER push ${REPOSITORY}/${IMAGE_NAME}
+            ${DOCKER} tag ${IMAGE_NAME} ${REPOSITORY}/${IMAGE_NAME}
+            ${DOCKER} push ${REPOSITORY}/${IMAGE_NAME}
             PUSH_FAILED=`echo $?`
             if [ ${PUSH_FAILED} -ne 0 ]; then
                 warn "The image could not be pushed. The repository might be down."
@@ -197,8 +197,8 @@ if [ "$PUSH_IMAGE" = "true" ]; then
             fi
         fi
     fi
-    IMAGE_ID=$($DOCKER images --format "{{.ID}}" ${IMAGE_NAME})
-elif [ "$PULL_IMAGE" = "true" ]; then
+    IMAGE_ID=$(${DOCKER} images --format "{{.ID}}" ${IMAGE_NAME})
+elif [ "${PULL_IMAGE}" = "true" ]; then
     warn "The image will be pulled in the worker, but will not be pushed from here. Make sure it is already in the repository or in DockerHub."
 fi
 

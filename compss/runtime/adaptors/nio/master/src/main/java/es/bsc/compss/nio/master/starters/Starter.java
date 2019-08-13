@@ -178,6 +178,7 @@ public abstract class Starter {
             process.waitFor();
             processOut.setExitValue(process.exitValue());
 
+            LOGGER.debug("Worker creation logs for " + this.nw.getName());
             BufferedReader reader = new BufferedReader(new InputStreamReader(stdout));
             String line;
             while ((line = reader.readLine()) != null) {
@@ -203,7 +204,7 @@ public abstract class Starter {
      * @param pid Process PID.
      */
     public void ender(NIOWorkerNode node, int pid) {
-        if (pid > 0) {
+        if (pid > 0 || (pid == -1 && this instanceof ContainerStarter)) {
             String user = node.getUser();
 
             // Clean worker working directory
@@ -224,36 +225,21 @@ public abstract class Starter {
 
             // Execute stop command
             String[] command = getStopCommand(pid);
-            LOGGER.info("getStopCommand generated this: " + command);
-            if (command != null) {
+            if (command.length > 0) {
+                LOGGER.debug("getStopCommand generated this: " + Arrays.asList(command));
                 executeCommand(user, node.getName(), command);
             }
 
         }
     }
 
-    protected String[] getStopCommand(int pid) {
-        String[] cmd = new String[2];
-        String installDir = this.nw.getInstallDir();
-
-        // Send SIGTERM to allow ShutdownHooks on Worker...
-        // Send SIGKILL to all child processes of 'pid'
-        // and send a SIGTERM to the parent process
-        // ps --ppid 2796 -o pid= | awk '{ print $1 }' | xargs kill -15 <--- kills all childs of ppid
-        // kill -15 2796 kills the parentpid
-        // necessary to check whether it has file separator or not? /COMPSs////Runtime == /COMPSs/Runtime in bash
-        cmd[0] = installDir + (installDir.endsWith(File.separator) ? "" : File.separator) + CLEAN_SCRIPT_PATH
-            + CLEAN_SCRIPT_NAME;
-        cmd[1] = String.valueOf(pid);
-
-        return cmd;
-    }
+    protected abstract String[] getStopCommand(int pid);
 
     protected ProcessOut executeCommand(String user, String resource, String[] command) {
         ProcessOut processOut = new ProcessOut();
         String[] cmd = this.nw.getConfiguration().getRemoteExecutionCommand(user, resource, command);
         if (cmd == null) {
-            LOGGER.warn("Worker configured to be sarted by queue system.");
+            LOGGER.warn("Worker configured to be started by queue system.");
             return null;
         }
         // Log command

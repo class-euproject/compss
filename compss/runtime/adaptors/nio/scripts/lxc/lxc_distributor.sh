@@ -6,22 +6,45 @@ usage() {
 
     Available flags:
 
-    -h, --help      Shows this help message
-    -i, --image     Sets the name of the image to launch. If it starts with "<name>:", it will be assumed to be in repository "<name>"
-    -w, --worker    The IP to use to connect through SSH to the worker
-    -m, --master    The hostname, FQDN, or IP to be used in the worker to identify the master
+    -h, --help      Shows this help message.
+    -i, --image     Sets the name of the image to launch. If it starts with "<name>:",
+                    it will be assumed to be in repository "<name>".
+    -w, --worker    The IP to use to connect through SSH to the worker.
+    -m, --master    The hostname, FQDN, or IP to be used in the worker to identify the
+                    master.
     -p, --as-public-server
-                        (Optional) The script will add the master as a public server on the agent
+                    (Optional) The script will add the master as a public server on the
+                    agent.
     --rollback-image
-                        (Optional) The script will make the image private after the transmission if the flag --as-public-server has been used
+                    (Optional) The script will make the image private after the
+                    transmission if the flag --as-public-server has been used.
     -n, --name      (Optional) Sets the name of the container
-    -c, --cert      (Optional) Path to the certificate to add if --as-public-server has not been used (default: /var/snap/lxd/common/lxd/server.crt)
-    --master-name   (Optional) Name with which refer to the master as a remote in the worker. (default: \$MASTER_ADDRESS)
+    -c, --cert      (Optional) Path to the certificate to add if --as-public-server has
+                    not been used (default: /var/snap/lxd/common/lxd/server.crt)
+    --master-name   (Optional) Name with which refer to the master as a remote in the
+                    worker. (default: \$MASTER_ADDRESS)
     -u, --user      (Optional) The username with which to connect to the worker through SSH
-    --pull          (Optional) If the image is not in the remote worker, copy it from the master
-    --ports         (Optional) Ports to open from the container to the worker host, following format: <HOST_PORT>:<CONTAINER_PORT>,<HOST_PORT2>:<CONTAINER_PORT2>,...
-    --storage       (Optional) Sets the storage settings, following format: <STORAGE_POOL>:<VOLUME_NAME>:<MOUNTING_POINT>. Only supports "dir" volumes.
-    --              After this flag, the execution command of the container must be set
+    --pull          (Optional) If the image is not in the remote worker, copy it from the
+                    master.
+    --ports         (Optional) Ports to open from the container to the worker host,
+                    following format: <HOST_PORT>:<CONTAINER_PORT>,
+                    <HOST_PORT2>:<CONTAINER_PORT2>,...
+    --range         (Optional) Range of ports, separated by a hyphen, from which to choose
+                    only ONE for the port forwarding. This port inside the
+                    container will forward to the same port in the host, unless
+                    one is explicitly specified after a colon (:). For example, if
+                    --range 40000-40010 is set, availability of all ports from
+                    40000 to 40010 will be checked. Otherwise, if --range
+                    40000-40010:80 is set, the port chosen from the range will
+                    forward to the port 80 inside the container. The first
+                    available port will be used and printed to STDOUT. If --reuse
+                    has been set, and a container of the image is already running,
+                    no forwarding can be added. If any forwarding already exists,
+                    those ports will be printed.
+    --storage       (Optional) Sets the storage settings, following format:
+                    <STORAGE_POOL>:<VOLUME_NAME>:<MOUNTING_POINT>. Only supports
+                    "dir" volumes.
+    --              After this flag, the execution command of the container must be set.
 
     Regarding image transmission, when it comes to remotely launching a LXC container there are two options. Both assume the image is in the host in which this script is run, this is, the master.
 
@@ -130,6 +153,9 @@ while [ "$1" != "" ]; do
         --storage)
             CONTAINER_VOLUMES="$2"
             shift;;
+        --range)
+            PORT_RANGE="$2"
+            shift;;
         --)
             shift
             break;;
@@ -187,7 +213,11 @@ if [ "$AS_PUBLIC_SERVER" = "true" -a -n "${CERT_FILE}" ]; then
     warn "Both --as-public-server and --cert were specified. The public server option will prevail. Press CTRL+C to cancel."
 fi
 if [ "$AS_PUBLIC_SERVER" = "false" -a -z "${CERT_FILE}" ]; then
-    warn "If the flag --as-public-server is not used, a certificate file should be declared. This will fall back to the default $DEFAULT_CERT_FILE"
+    warn "If the flag --as-public-server is not used, a certificate file should be declared. This will fall back to the default $DEFAULT_CERT_FILE."
+fi
+if [ "$AS_PUBLIC_SERVER" = "true" -o -n "${CERT_FILE}" ]; then
+    warn "Image transmission has been set up via public server or certificate file. The image pull will be forced."
+    PULL_IMAGE="true"
 fi
 if [ -z "$CONTAINER_NAME" ]; then
     CONTAINER_NAME="$(echo ${IMAGE_NAME} | cut -d"/" -f1)-$(uuidgen | cut -d"-" -f1)"
@@ -253,7 +283,13 @@ else
     echo "    Run command for container: $LAUNCH_COMMAND"
 fi
 
-ssh -o BatchMode=yes -o StrictHostKeyChecking=no ${WORKER_USER}@${WORKER_NAME} "/bin/sh -s" < ${COMPSS_HOME:-/opt/COMPSs}/Runtime/scripts/system/adaptors/nio/lxc/lxc_worker.sh "${CONTAINER_NAME}" "${CONTAINER_PORTS:-null}" "${IMAGE_NAME}" "${PULL_IMAGE}" "${USES_REMOTE}" "${REMOTE_NAME:-null}" "${MASTER_ADDRESS:-null}" "${WORKER_NAME}" "${AS_PUBLIC_SERVER}" "${CONTAINER_VOLUMES:-null}" "${LAUNCH_COMMAND}"
+if [ -n "${PORT_RANGE}" ]; then
+    if [ $(charamount ${PORT_RANGE} "-") -ne 1 -a $(charamount ${PORT_RANGE} ":") -ne 1 ]; then
+        error "If you set the range flag, you must specify both the range of outside ports, and the inside port to which redirect"
+    fi
+fi
+
+ssh -o BatchMode=yes -o StrictHostKeyChecking=no ${WORKER_USER}@${WORKER_NAME} "/bin/sh -s" < ${COMPSS_HOME:-/opt/COMPSs}/Runtime/scripts/system/adaptors/nio/lxc/lxc_worker.sh "${CONTAINER_NAME}" "${CONTAINER_PORTS:-null}" "${IMAGE_NAME}" "${PULL_IMAGE}" "${USES_REMOTE}" "${REMOTE_NAME:-null}" "${MASTER_ADDRESS:-null}" "${WORKER_NAME}" "${AS_PUBLIC_SERVER}" "${CONTAINER_VOLUMES:-null}" "${PORT_RANGE-null}" "${LAUNCH_COMMAND}"
 
 if [ "$?" -gt 0 ]; then
     error "An error happened. Be sure to check out the output"
@@ -264,5 +300,3 @@ if [ "$ROLLBACK_IMAGE" = "true" ]; then
 public: false
 EOF
 fi
-
-echo "Everything seems to have worked just fine!"

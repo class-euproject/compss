@@ -1,4 +1,11 @@
 #!/bin/sh
+
+charamount() {
+    local STR=$1
+    local CHAR=$2
+    echo "$STR" | awk -F"$CHAR" '{print NF-1}'
+}
+
 OK() {
     if [ -t 1 ]; then
         echo "\e[92m$1\e[39m"
@@ -29,8 +36,9 @@ MASTER_ADDRESS=$7
 HOST_ADDRESS=$8
 AS_PUBLIC_SERVER=$9
 CONTAINER_VOLUMES=$10
+PORT_RANGE=$11
 
-shift 10
+shift 11
 LAUNCH_COMMAND=""
 for ARG in "$@"
 do
@@ -57,7 +65,7 @@ else
     if [ -f "/snap/bin/lxc" ]; then
         PATH=$PATH:/snap/bin
     else
-        PATH=$PATH:`${COMMAND_OUTPUT} | cut -d"/" -f-$(charamount $COMMAND_OUTPUT "/")`
+        PATH=$PATH:`${COMMAND_OUTPUT} | cut -d"/" -f-$(charamount ${COMMAND_OUTPUT} "/")`
     fi
 fi
 
@@ -102,7 +110,6 @@ else
 fi
 
 if [ "${CONTAINER_VOLUMES}" != "null" ]; then
-    echo "CONTAINER_VOLUMES is ${CONTAINER_VOLUMES}"
     ST_POOL=`echo ${CONTAINER_VOLUMES} | cut -d":" -f1`
     ST_VOL=`echo ${CONTAINER_VOLUMES} | cut -d":" -f2`
     VOL_MOUNT_PATH=`echo ${CONTAINER_VOLUMES} | cut -d":" -f3`
@@ -135,6 +142,33 @@ else
     echo "Not attaching any volume to the container"
 fi
 
+if [ "${PORT_RANGE}" != "null" ]; then
+    ALL_PORTS=""
+    for c in `lxc ls -c ns --format csv | grep RUNNING | cut -d, -f1 | xargs`; do
+        ALL_PORTS="${ALL_PORTS_LIST} `lxc config device show $c | grep listen: | cut -d: -f3`"
+    done
+    RANGE_INC_PORT=$(echo ${PORT_RANGE} | cut -d":" -f2)
+    PORT_RANGE=$(echo ${PORT_RANGE} | cut -d":" -f1)
+    INIT_PORT=$(echo ${PORT_RANGE} | cut -d"-" -f1)
+    LAST_PORT=$(echo ${PORT_RANGE} | cut -d"-" -f2)
+    # for P in &(seq $INIT_PORT $LAST_PORT)
+    while [ ${INIT_PORT} -le ${LAST_PORT} ]; do
+        PORT_IS_FREE=$(echo ${ALL_PORTS} | grep -c ${INIT_PORT}) # 0 if port is not in the list, thus free
+        if [ ${PORT_IS_FREE} -eq 0 ]; then
+            RANGE_PORT=${INIT_PORT}
+            break
+        fi
+        INIT_PORT=$(($INIT_PORT + 1))
+    done
+    if [ ${INIT_PORT} -gt ${LAST_PORT} ]; then
+        error "None of the ports specified with flag --range is available"
+    elif [ "${CONTAINER_PORTS}" = "null" ]; then
+        CONTAINER_PORTS="${RANGE_PORT}:${RANGE_INC_PORT}"
+    else
+        CONTAINER_PORTS="${CONTAINER_PORTS},${RANGE_PORT}:${RANGE_INC_PORT}"
+    fi
+fi
+
 if [ "${CONTAINER_PORTS}" = "" ]; then
     echo "No port forwarding will be added."
 fi
@@ -149,6 +183,13 @@ done
 
 if [ -n "${LAUNCH_COMMAND}" ]; then
     echo "Running execution command inside the container..."
+    echo "curl --silent --fail -XPOST --unix-socket /var/snap/lxd/common/lxd/unix.socket http://1.0/1.0/containers/${CONTAINER_NAME}/exec -d\"{
+        \"command\": [\"$LAUNCH_COMMAND\"],
+        \"environment\": {},
+        \"wait-for-websocket\": false,
+        \"record-output\": true,
+        \"interactive\": true
+    }\""
     curl --silent --fail -XPOST --unix-socket /var/snap/lxd/common/lxd/unix.socket http://1.0/1.0/containers/${CONTAINER_NAME}/exec -d"{
         \"command\": [\"$LAUNCH_COMMAND\"],
         \"environment\": {},
@@ -161,4 +202,8 @@ if [ -n "${LAUNCH_COMMAND}" ]; then
     else
         OK "Execution command run successfully"
     fi
+fi
+
+if [ "$PORT_RANGE" != "null" ]; then
+    echo ${RANGE_PORT}
 fi

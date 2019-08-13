@@ -42,6 +42,11 @@ public class DockerStarter extends ContainerStarter {
     }
 
     @Override
+    protected String[] getStopCommand(int pid) {
+        return new String[0];
+    }
+
+    @Override
     protected NIONode distribute(String master, Integer minPort, Integer maxPort) throws InitNodeException {
         final String[] command = getStartCommand(43001, master);
 
@@ -96,8 +101,4 @@ public class DockerStarter extends ContainerStarter {
         return imageSplit[imageSplit.length - 1].split(":")[0];
     }
 
-    @Override
-    protected void killPreviousWorker(String user, String name, int pid) throws InitNodeException {
-
-    }
 }

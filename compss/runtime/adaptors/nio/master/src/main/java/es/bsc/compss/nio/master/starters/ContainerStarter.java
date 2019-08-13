@@ -10,8 +10,14 @@ import es.bsc.compss.nio.master.NIOWorkerNode;
 import es.bsc.compss.nio.master.handlers.Ender;
 import es.bsc.compss.util.Tracer;
 
+import java.net.InterfaceAddress;
+import java.net.NetworkInterface;
+import java.net.SocketException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.List;
 
 
@@ -19,6 +25,10 @@ public abstract class ContainerStarter extends Starter {
 
     private static final String DEFAULT_CONTAINER_APP_DIR = "/compss";
     private static final String NIO_WORKER_CLASS_NAME = "es.bsc.compss.nio.worker.NIOWorker";
+
+    protected static String INFERRED_MASTER_NAME = null;
+
+    private static final String IP_REGEX = "^(?=.*[^\\.]$)((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.?){4}$";
 
 
     /**
@@ -234,6 +244,40 @@ public abstract class ContainerStarter extends Starter {
         return cmd.toArray(new String[0]);
     }
 
+    private boolean isSameNetwork(String[] ip1, String[] ip2, int amount) {
+        if (amount == 0) {
+            return true;
+        }
+        return ip1[0].equals(ip2[0]) && isSameNetwork(Arrays.copyOfRange(ip1, 1, ip1.length),
+            Arrays.copyOfRange(ip2, 1, ip2.length), amount - 1);
+    }
+
+    private synchronized String inferMasterAddress() {
+        if (INFERRED_MASTER_NAME != null) {
+            return INFERRED_MASTER_NAME;
+        }
+        try {
+            String[] workerIp = this.nw.getName().split("\\.");
+            Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces();
+            for (NetworkInterface iface : Collections.list(ifaces)) {
+                Iterator<InterfaceAddress> addrIt = iface.getInterfaceAddresses().listIterator();
+                while (addrIt.hasNext()) {
+                    InterfaceAddress addr = addrIt.next();
+                    if (addr.getAddress().getHostAddress().matches(IP_REGEX)) {
+                        String[] ifaceIp = addr.getAddress().getHostAddress().split("\\.");
+                        if (isSameNetwork(ifaceIp, workerIp, addr.getNetworkPrefixLength() / 8)) {
+                            INFERRED_MASTER_NAME = addr.getAddress().getHostAddress();
+                            return INFERRED_MASTER_NAME;
+                        }
+                    }
+                }
+            }
+        } catch (SocketException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
+
     @Override
     public NIONode startWorker() throws InitNodeException {
         String name = this.nw.getName();
@@ -247,6 +291,10 @@ public abstract class ContainerStarter extends Starter {
             && (!MASTER_NAME_PROPERTY.equals("null"))) {
             // Set the hostname from the defined property
             masterName = MASTER_NAME_PROPERTY;
+        } else {
+            if (nw.getName().matches(IP_REGEX)) {
+                masterName = inferMasterAddress();
+            }
         }
 
         synchronized (addressToWorkerStarter) {
@@ -267,7 +315,6 @@ public abstract class ContainerStarter extends Starter {
         } else {
             LOGGER.info("Container created successfully with port " + n.getPort());
             Runtime.getRuntime().addShutdownHook(new Ender(this, this.nw, -1));
-            // container.setContainerId(containerId);
             return n;
         }
 
@@ -285,4 +332,5 @@ public abstract class ContainerStarter extends Starter {
     }
 
     protected abstract NIONode distribute(String master, Integer minPort, Integer maxPort) throws InitNodeException;
+
 }

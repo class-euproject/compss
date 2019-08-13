@@ -53,7 +53,7 @@ if [ "${CONTAINER_VOLUMES}" = "null" ]; then
     unset CONTAINER_VOLUMES
 else
     for VOL_OP in `echo ${CONTAINER_VOLUMES} | sed -r 's/,/ /g'`; do
-        VOLUME_ORIGIN=`echo $CONTAINER_VOLUMES | cut -f":"`
+        VOLUME_ORIGIN=`echo $CONTAINER_VOLUMES | cut -d":" -f1`
         if [ ! -f ${VOLUME_ORIGIN} -a ! -d ${VOLUME_ORIGIN} ]; then
             DOCKER_VOLUMES=`docker volume ls | grep ${VOLUME_ORIGIN}`
             if [ -z "${DOCKER_VOLUMES}" ]; then
@@ -90,9 +90,7 @@ if [ "$PORT_RANGE" != "null" ]; then
     ALL_PORT_LIST=$(docker ps --format "{{.Ports}}" | xargs)
     ALL_PORTS=""
     for P in ${ALL_PORT_LIST}; do
-        echo "P BEFORE IS $P"
         P=$(echo "$P" | cut -d">" -f2 | cut -d"/" -f1)
-        echo "P AFTER IS $P"
         if [ $(charamount "$P" "-") -eq 1 ]; then
             ALL_PORTS="$ALL_PORTS $(seq `echo "$P" | cut -d"-" -f1` `echo "$P" | cut -d"-" -f2`)"
         else
