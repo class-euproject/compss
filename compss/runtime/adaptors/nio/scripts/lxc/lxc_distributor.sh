@@ -4,47 +4,61 @@ usage() {
     cat <<EOF
     Linux Containers (LXC) distribution tool.
 
-    Available flags:
+    Mandatory flags:
 
-    -h, --help      Shows this help message.
-    -i, --image     Sets the name of the image to launch. If it starts with "<name>:",
-                    it will be assumed to be in repository "<name>".
-    -w, --worker    The IP to use to connect through SSH to the worker.
-    -m, --master    The hostname, FQDN, or IP to be used in the worker to identify the
-                    master.
-    -p, --as-public-server
-                    (Optional) The script will add the master as a public server on the
-                    agent.
-    --rollback-image
-                    (Optional) The script will make the image private after the
-                    transmission if the flag --as-public-server has been used.
-    -n, --name      (Optional) Sets the name of the container
-    -c, --cert      (Optional) Path to the certificate to add if --as-public-server has
-                    not been used (default: /var/snap/lxd/common/lxd/server.crt)
-    --master-name   (Optional) Name with which refer to the master as a remote in the
-                    worker. (default: \$MASTER_ADDRESS)
-    -u, --user      (Optional) The username with which to connect to the worker through SSH
-    --pull          (Optional) If the image is not in the remote worker, copy it from the
-                    master.
-    --ports         (Optional) Ports to open from the container to the worker host,
-                    following format: <HOST_PORT>:<CONTAINER_PORT>,
-                    <HOST_PORT2>:<CONTAINER_PORT2>,...
-    --range         (Optional) Range of ports, separated by a hyphen, from which to choose
-                    only ONE for the port forwarding. This port inside the
-                    container will forward to the same port in the host, unless
-                    one is explicitly specified after a colon (:). For example, if
-                    --range 40000-40010 is set, availability of all ports from
-                    40000 to 40010 will be checked. Otherwise, if --range
-                    40000-40010:80 is set, the port chosen from the range will
-                    forward to the port 80 inside the container. The first
-                    available port will be used and printed to STDOUT. If --reuse
-                    has been set, and a container of the image is already running,
-                    no forwarding can be added. If any forwarding already exists,
-                    those ports will be printed.
-    --storage       (Optional) Sets the storage settings, following format:
-                    <STORAGE_POOL>:<VOLUME_NAME>:<MOUNTING_POINT>. Only supports
-                    "dir" volumes.
-    --              After this flag, the execution command of the container must be set.
+    -h, --help          Shows this help message.
+
+    -i, --image         Sets the name of the image to launch. If it starts with "<name>:",
+                        it will be assumed to be in repository "<name>".
+
+    -w, --worker        The IP to use to connect through SSH to the worker.
+
+    -m, --master        The hostname, FQDN, or IP to be used in the worker to identify the
+                        master.
+
+    Optional flags:
+
+    -p,                 The script will add the master as a public server on the agent.
+    --as-public-server
+
+    --rollback-image    The script will make the image private after the transmission
+                        if the flag --as-public-server has been used.
+
+    -n, --name          Sets the name of the container.
+
+    -c, --cert          Path to the certificate to add if --as-public-server has
+                        not been used (default: /var/snap/lxd/common/lxd/server.crt).
+
+    --master-name       Name with which refer to the master as a remote in the
+                        worker. (default: \$MASTER_ADDRESS)
+
+    -u, --user          The username with which to connect to the worker through SSH.
+
+    --pull              If the image is not in the remote worker, copy it from the
+                        master.
+
+    --ports             Ports to open from the container to the worker host,
+                        following format: <HOST_PORT>:<CONTAINER_PORT>,
+                        <HOST_PORT2>:<CONTAINER_PORT2>,...
+
+    --range             Range of ports, separated by a hyphen, from which to choose
+                        only ONE for the port forwarding. This port inside the
+                        container will forward to the same port in the host, unless
+                        one is explicitly specified after a colon (:). For example, if
+                        --range 40000-40010 is set, availability of all ports from
+                        40000 to 40010 will be checked. Otherwise, if --range
+                        40000-40010:80 is set, the port chosen from the range will
+                        forward to the port 80 inside the container. The first
+                        available port will be used and printed to STDOUT. If --reuse
+                        has been set, and a container of the image is already running,
+                        no forwarding can be added. If any forwarding already exists,
+                        those ports will be printed.
+
+    --storage           Sets the storage settings, following format:
+                        <STORAGE_POOL>:<VOLUME_NAME>:<MOUNTING_POINT>. Only supports
+                        "dir" volumes.
+
+    --                  After this flag, the execution command of the container must be set.
 
     Regarding image transmission, when it comes to remotely launching a LXC container there are two options. Both assume the image is in the host in which this script is run, this is, the master.
 

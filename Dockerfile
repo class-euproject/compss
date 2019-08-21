@@ -1,28 +1,20 @@
-FROM compss/base:latest
-MAINTAINER COMPSs Support <support-compss@bsc.es>
+FROM docker:dind
+LABEL maintainer="unai.perez@bsc.es"
 
-ARG release=false
+ENV JAVA_HOME=/usr/lib/jvm/java-1.8-openjdk
 
-# Copy framework files for installation and testing
-COPY . /framework
+COPY . /root/framework
 
-ENV GRADLE_HOME /opt/gradle
-ENV JAVA_HOME /usr/lib/jvm/java-8-openjdk-amd64/
-ENV PATH $PATH:/opt/COMPSs/Runtime/scripts/user:/opt/COMPSs/Bindings/c/bin:/opt/COMPSs/Runtime/scripts/utils:/opt/gradle/bin
-ENV CLASSPATH $CLASSPATH:/opt/COMPSs/Runtime/compss-engine.jar
-ENV LD_LIBRARY_PATH /opt/COMPSs/Bindings/bindings-common/lib:$JAVA_HOME/jre/lib/amd64/server
+RUN echo "@edgetesting http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories && \
+	apk add --no-cache --update git nano wget openssh-server openssh-client maven openjdk8 graphviz xdg-utils libtool autoconf automake build-base boost-dev libxml2-dev tcsh util-linux curl bc libffi-dev gradle bash openmpi@edgetesting openmpi-dev@edgetesting lxd@edgetesting && \
+	ssh-keygen -A && \
+	ssh-keygen -f /root/.ssh/id_rsa -t rsa -N '' && \
+	cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && \
+	echo 'root:`mkpasswd randompassword`' | chpasswd && \
+	ln -s /usr/local/bin/docker /usr/bin/docker
 
-# Install COMPSs
-RUN cd /framework && \
-    ./submodules_get.sh && \
-    ./submodules_patch.sh && \
-    sudo -E /framework/builders/buildlocal /opt/COMPSs && \
-    mv /root/.m2 /home/jenkins/ && \
-    rm -rf /root/.cache && \
-    sudo chown -R jenkins: /framework && \
-    sudo chown -R jenkins: /home/jenkins/ && \
-    if [ "$release" = "true" ]; then rm -rf /framework /home/jenkins/.m2 /root/.m2; fi
+RUN cd /root/framework && \
+	./submodules_get.sh && \
+	./submodules_patch.sh
 
-# Expose SSH port and run SSHD
-EXPOSE 22
-CMD ["/usr/sbin/sshd","-D"]
+ENTRYPOINT ["/bin/sh", "-c", "nohup /usr/sbin/sshd -D & dockerd-entrypoint.sh"]

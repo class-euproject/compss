@@ -16,12 +16,15 @@
 #---------------------------------------------------
 # SCRIPT CONSTANTS DECLARATION
 #---------------------------------------------------
+COMPSS_VERSION=2.5.rc1907
+
 DEFAULT_MONITOR=true
 DEFAULT_BINDINGS=true
 DEFAULT_PYCOMPSS=true
 DEFAULT_TRACING=true
 DEFAULT_AUTOPARALLEL=true
 DEFAULT_KAFKA=true
+DEFAULT_IMAGES=true
 DEFAULT_USER=false
 DEFAULT_TARGET_DIR=/opt/COMPSs
 DEFAULT_MVN_TESTS=""
@@ -34,6 +37,7 @@ NO_PYCOMPSS="Warning: No pycompss specified. Loading default value"
 NO_TRACING="Warning: No tracing specified. Loading default value"
 NO_AUTOPARALLEL="Warning: No autoparallel specified. Loading default value"
 NO_KAFKA="Warning: No Kafka module specified. Loading default value"
+NO_IMAGES="Warning: No images specified. Loading default value"
 NO_TARGET_DIR="Warning: No install directory specified. Loading default location"
 
 
@@ -80,6 +84,10 @@ show_opts() {
     --kafka, -k                 Enable Kafka module installation
     --no-kafka, -K              Disable Kafka module installation
                                 Default: ${DEFAULT_KAFKA}
+
+    --images, -i                Enable build of worker Docker images
+    --no-images, -I             Disable build of worker Docker images
+                                Default ${DEFAULT_IMAGES}
     
     --nothing, -N               Disable all previous options
                                 Default: unused
@@ -109,7 +117,7 @@ EOT
 }
 
 show_version() {
-  echo "COMPSs version 2.5.rc1907"
+  echo "COMPSs version ${COMPSS_VERSION}"
   echo " "
 }
 
@@ -131,7 +139,7 @@ display_error() {
 
 get_args() {
   # Parse COMPSs Options
-  while getopts hvmMbBpPtTaAkKN-: flag; do 
+  while getopts hvmMbBpPtTaAkKiIN-: flag; do
     # Treat the argument
     case "$flag" in
       h)
@@ -193,6 +201,12 @@ get_args() {
         # Custom Kafka value
         kafka=false
         ;;
+      i)
+        images=true
+        ;;
+      I)
+        images=false
+        ;;
       N)
         # Disables all flags
         tracing=false
@@ -201,6 +215,7 @@ get_args() {
         pycompss=false
         autoparallel=false
         kafka=false
+        images=false
         ;;
       -)
 	# Check more complex arguments
@@ -269,6 +284,12 @@ get_args() {
             # Custom Kafka value
             kafka=false
             ;;
+          images)
+            images=true
+            ;;
+          no-images)
+            images=false
+            ;;
           nothing)
             # Disables all flags
             tracing=false
@@ -277,6 +298,7 @@ get_args() {
             pycompss=false
             autoparallel=false
             kafka=false
+            images=false
             ;;
           user-exec=*)
             # Enables specific user mvn execution
@@ -340,6 +362,11 @@ check_args() {
     kafka=${DEFAULT_KAFKA}
   fi
 
+  if [ -z "${images}" ]; then
+    display_warning "${NO_IMAGES}"
+    images=${DEFAULT_IMAGES}
+  fi
+
   if [ -z "${user_exec}" ]; then
     if [ -z "${SUDO_USER}" ]; then
       # Cannot retrieve sudo user from env
@@ -374,6 +401,7 @@ warn_and_log_parameters() {
   echo "- Tracing        = ${tracing}"
   echo "- AutoParallel   = ${autoparallel}"
   echo "- Stream Backend = ${kafka}"
+  echo "- Docker images  = ${images}"
   echo "- SCRIPT_DIR     = ${SCRIPT_DIR}"
   echo "- SOURCES DIR    = ${SOURCES_DIR}"
   echo "- TMP_DIR        = ${TMP_DIR}"
@@ -662,6 +690,18 @@ install_compss() {
         exit 1
       fi
       cd "${SCRIPT_DIR}"
+    fi
+  fi
+
+  # images
+  mkdir -p "${TMP_DIR}/utils/docker/worker/java/compss/adaptors/nio"
+  mkdir -p "${TMP_DIR}/utils/docker/worker/java/compss/configuration"
+  cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/docker/worker/java/compss/adaptors/nio/"
+  cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/docker/worker/java/compss/configuration/"
+  if [ "${images}" = "true" ]; then
+    docker build -t compss/nio-worker-amd64:${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/java"
+    if [ "${bindings}" = "true" -o "${pycompss}" = "true" ]; then
+        echo "NOW THE BINDING"
     fi
   fi
 
