@@ -11,11 +11,9 @@ RUN echo "@edgetesting http://dl-cdn.alpinelinux.org/alpine/edge/testing" >> /et
 	ssh-keygen -f /root/.ssh/id_rsa -t rsa -N '' && \
 	cat /root/.ssh/id_rsa.pub >> /root/.ssh/authorized_keys && \
 	echo 'root:`mkpasswd randompassword`' | chpasswd && \
-	ln -s /usr/local/bin/docker /usr/bin/docker
+	ln -s /usr/local/bin/docker /usr/bin/docker && \
+	sed -i "185i nohup /usr/sbin/sshd -D" /usr/local/bin/dockerd-entrypoint.sh
 
 RUN cd /root/framework && \
 	./submodules_get.sh && \
 	./submodules_patch.sh
-
-ENTRYPOINT ["/bin/sh", "-c"]
-CMD ["nohup /usr/sbin/sshd -D & dockerd-entrypoint.sh"]

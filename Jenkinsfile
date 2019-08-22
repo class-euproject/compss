@@ -2,7 +2,7 @@ pipeline {
     agent {
         dockerfile {
             filename "Dockerfile"
-            args "--privileged"
+            args "--privileged -e DOCKER_HOST=unix:///var/run/docker.sock"
         }
     }
 
