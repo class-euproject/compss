@@ -27,10 +27,8 @@ pipeline {
         stage("Compiling") {
             steps {
                 script {
-                    compssEnv.inside {
-                        dir "/root/framework/builders"
-                        sh "./buildlocal -M -B -P -T -A -K -i /opt/COMPSs"
-                    }
+                    dir "/root/framework/builders"
+                    sh "./buildlocal -M -B -P -T -A -K -i /opt/COMPSs"
                 }
             }
         }
