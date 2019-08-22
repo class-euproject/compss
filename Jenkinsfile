@@ -2,7 +2,6 @@ pipeline {
     agent {
         dockerfile {
             filename "Dockerfile"
-            label "${env.BUILD_ID}"
             args "--privileged"
         }
     }
