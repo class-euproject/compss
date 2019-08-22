@@ -17,4 +17,5 @@ RUN cd /root/framework && \
 	./submodules_get.sh && \
 	./submodules_patch.sh
 
-ENTRYPOINT ["/bin/sh", "-c", "nohup /usr/sbin/sshd -D & dockerd-entrypoint.sh"]
+ENTRYPOINT ["/bin/sh", "-c"]
+CMD ["nohup /usr/sbin/sshd -D & dockerd-entrypoint.sh"]
