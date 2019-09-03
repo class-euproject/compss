@@ -2,6 +2,7 @@ pipeline {
     agent {
         dockerfile {
             filename "Dockerfile"
+            additionalBuildArgs  '-t bsc-ppc/compss-docker-test'
             args "--privileged -e DOCKER_HOST=unix:///var/run/docker.sock -u root:root -v /home/`whoami`/.m2/repository:/root/.m2"
         }
     }
@@ -33,6 +34,7 @@ pipeline {
         }
         always{
             deleteDir()
+            sh "docker rmi bsc-ppc/compss-docker-test -f"
         }
     }
 
