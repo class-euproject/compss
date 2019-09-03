@@ -25,12 +25,19 @@ pipeline {
     }
 
     post {
-        success {
-            setBuildStatus("Build succeeded", "SUCCESS")
-        }
         failure {
-            setBuildStatus("Build failed", "FAILURE")
+            updateGitlabCommitStatus name: 'Compiling', state: 'failed'
         }
+        success {
+            updateGitlabCommitStatus name: 'Compiling', state: 'success'
+        }
+        always{
+            deleteDir()
+        }
+    }
+
+    options {
+        gitLabConnection('Gitlab')
     }
 
 }
