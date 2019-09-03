@@ -2,7 +2,7 @@ pipeline {
     agent {
         dockerfile {
             filename "Dockerfile"
-            args "--privileged -e DOCKER_HOST=unix:///var/run/docker.sock -u root:root -v /home/`whoami`/.m2/repository:/home/root/repository"
+            args "--privileged -e DOCKER_HOST=unix:///var/run/docker.sock -u root:root -v /home/`whoami`/.m2/repository:/root/.m2"
         }
     }
 
@@ -26,10 +26,10 @@ pipeline {
 
     post {
         success {
-            setBuildStatus("Build succeeded", "SUCCESS");
+            setBuildStatus("Build succeeded", "SUCCESS")
         }
         failure {
-            setBuildStatus("Build failed", "FAILURE");
+            setBuildStatus("Build failed", "FAILURE")
         }
     }
 
