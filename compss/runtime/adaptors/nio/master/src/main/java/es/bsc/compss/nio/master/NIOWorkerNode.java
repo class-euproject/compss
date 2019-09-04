@@ -39,6 +39,7 @@ import es.bsc.compss.nio.commands.workerfiles.CommandGenerateWorkerDebugFiles;
 import es.bsc.compss.nio.master.configuration.NIOConfiguration;
 import es.bsc.compss.nio.master.starters.DockerStarter;
 import es.bsc.compss.nio.master.starters.LXCStarter;
+import es.bsc.compss.nio.master.starters.RotterdamStarter;
 import es.bsc.compss.nio.master.starters.Starter;
 import es.bsc.compss.nio.master.starters.WorkerStarter;
 import es.bsc.compss.nio.master.utils.NIOParamFactory;
@@ -115,15 +116,22 @@ public class NIOWorkerNode extends COMPSsWorker {
     public void start() throws InitNodeException {
         NIONode n = null;
         try {
-            switch (Optional.ofNullable(config.getProperty("Engine")).orElse("").toLowerCase()) {
+            String engine = Optional.ofNullable(config.getProperty("Engine")).orElse("").toLowerCase();
+            switch (engine) {
                 case "docker":
                     this.workerStarter = new DockerStarter(this);
                     break;
                 case "lxc":
                     this.workerStarter = new LXCStarter(this);
                     break;
-                default:
+                case "rotterdam":
+                    this.workerStarter = new RotterdamStarter(this);
+                    break;
+                case "":
                     this.workerStarter = new WorkerStarter(this);
+                    break;
+                default:
+                    throw new InitNodeException("Engine " + engine + "not supported");
             }
             synchronized (this.workerStarter) {
                 n = this.workerStarter.startWorker();

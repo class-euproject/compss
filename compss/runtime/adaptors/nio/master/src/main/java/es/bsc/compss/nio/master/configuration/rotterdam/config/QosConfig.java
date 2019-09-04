@@ -1,0 +1,29 @@
+package es.bsc.compss.nio.master.configuration.rotterdam.config;
+
+public class QosConfig {
+
+    private String name;
+    private String description;
+
+
+    public QosConfig(String name, String description) {
+        this.name = name;
+        this.description = description;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+}
