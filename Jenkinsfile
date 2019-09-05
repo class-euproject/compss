@@ -28,6 +28,11 @@ pipeline {
     post {
         failure {
             updateGitlabCommitStatus name: 'Compiling', state: 'failed'
+            emailext attachLog: true,
+                    body: "<b>An error has ocurred</b><br>Project: ${env.JOB_NAME} #${env.BUILD_NUMBER} <br/>" +
+                            "URL:  <a href='${env.BUILD_URL}'>${env.BUILD_URL}</a>",
+                    subject: "ERROR ON ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+                    to: 'unai.perez@bsc.es'
         }
         success {
             updateGitlabCommitStatus name: 'Compiling', state: 'success'
