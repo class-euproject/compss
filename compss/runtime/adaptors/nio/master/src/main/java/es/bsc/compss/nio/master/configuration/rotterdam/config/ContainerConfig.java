@@ -13,11 +13,22 @@ public class ContainerConfig {
     private List<String> args;
 
 
+    /**
+     * Representation of the container configuration for (de)serialization in Rotterdam request/response body.
+     * 
+     * @param name Name for the container
+     * @param image Name of the image to be used
+     */
     public ContainerConfig(String name, String image) {
         this.name = name;
         this.image = image;
     }
 
+    /**
+     * Add port forwarding configuration to container's configuration.
+     * 
+     * @param portConfig Port configuration object
+     */
     public void addPort(PortConfig portConfig) {
         if (ports == null) {
             this.ports = new ArrayList<>();

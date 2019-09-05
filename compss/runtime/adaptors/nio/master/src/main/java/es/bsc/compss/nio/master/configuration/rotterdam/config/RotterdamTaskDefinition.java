@@ -15,6 +15,13 @@ public class RotterdamTaskDefinition {
     private List<ContainerConfig> containers = new ArrayList<>();
 
 
+    /**
+     * Utility class for JSON (de)serialization of the "task" object in the Rotterdam request body.
+     * 
+     * @param name Task name
+     * @param dock Dock name
+     * @param replicas Amount of replicas to deploy
+     */
     public RotterdamTaskDefinition(String name, String dock, Integer replicas) {
         this.name = name;
         this.dock = dock;

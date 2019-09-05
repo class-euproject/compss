@@ -7,6 +7,13 @@ public class PortConfig {
     private String protocol;
 
 
+    /**
+     * Utility class for port configuration (de)serialization in Rotterdam request/response body.
+     * 
+     * @param containerPort Port within the container
+     * @param hostPort Corresponding port in host
+     * @param protocol Protocol (usually just TCP)
+     */
     public PortConfig(Integer containerPort, Integer hostPort, String protocol) {
         this.containerPort = containerPort;
         this.hostPort = hostPort;

@@ -1,6 +1,7 @@
 package es.bsc.compss.nio.master.starters;
 
 import com.google.gson.Gson;
+
 import es.bsc.comm.nio.NIONode;
 import es.bsc.compss.exceptions.InitNodeException;
 import es.bsc.compss.nio.master.NIOWorkerNode;
@@ -9,6 +10,11 @@ import es.bsc.compss.nio.master.configuration.rotterdam.config.QosConfig;
 import es.bsc.compss.nio.master.configuration.rotterdam.config.RotterdamTaskDefinition;
 import es.bsc.compss.nio.master.configuration.rotterdam.response.RotterdamTaskCreateResponse;
 import es.bsc.compss.nio.master.configuration.rotterdam.response.RotterdamTaskRequestStatus;
+
+import java.util.Arrays;
+import java.util.Optional;
+import java.util.stream.IntStream;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -17,16 +23,12 @@ import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 
-import java.util.Arrays;
-import java.util.Optional;
-import java.util.stream.IntStream;
-
 
 public class RotterdamStarter extends ContainerStarter {
 
-    private final String TASK_CREATE_URL = "/api/v1/docks/tasks-compss";
-    private final String TASK_CHECK_TEMPLATE = "/api/v1/docks/%s/tasks/%s";
-    private final String SERVER_BASE = "http://rotterdam-caas.192.168.7.28.xip.io";
+    private static final String TASK_CREATE_URL = "/api/v1/docks/tasks-compss";
+    private static final String TASK_CHECK_TEMPLATE = "/api/v1/docks/%s/tasks/%s";
+    private static final String SERVER_BASE = "http://rotterdam-caas.192.168.7.28.xip.io";
 
     private CloseableHttpClient httpClient;
 
