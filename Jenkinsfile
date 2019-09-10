@@ -19,7 +19,7 @@ pipeline {
         stage("Compiling") {
             steps {
                 script {
-                    sh "/root/framework/builders/buildlocal -M -B -P -T -A -K -i /opt/COMPSs"
+                    sh "/root/framework/builders/buildlocal -M -B -P -T -A -K -X -d /opt/COMPSs"
                 }
             }
         }
