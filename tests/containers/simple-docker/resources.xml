@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ResourcesList>
+    <ComputeNode Name="localhost">
+        <Processor Name="MainProcessor">
+            <ComputingUnits>4</ComputingUnits>
+        </Processor>
+        <Adaptors>
+            <Adaptor Name="es.bsc.compss.nio.master.NIOAdaptor">
+                <SubmissionSystem>
+                    <Interactive/>
+                </SubmissionSystem>
+                <Ports>
+                    <MinPort>43011</MinPort>
+                    <MaxPort>43020</MaxPort>
+                </Ports>
+                <Properties>
+                    <Property>
+                        <Name>Engine</Name>
+                        <Value>docker</Value>
+                    </Property>
+                    <Property>
+                        <Name>ImageName</Name>
+                        <Value>jenkins-compss/simple-try</Value>
+                    </Property>
+                </Properties>
+            </Adaptor>
+        </Adaptors>
+    </ComputeNode>
+</ResourcesList>

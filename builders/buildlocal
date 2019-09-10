@@ -694,14 +694,47 @@ install_compss() {
   fi
 
   # images
-  mkdir -p "${TMP_DIR}/utils/docker/worker/java/compss/adaptors/nio"
-  mkdir -p "${TMP_DIR}/utils/docker/worker/java/compss/configuration"
-  cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/docker/worker/java/compss/adaptors/nio/"
-  cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/docker/worker/java/compss/configuration/"
-  if [ "${images}" = "true" ]; then
-    docker build -t compss/nio-worker-amd64:${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/java"
-    if [ "${bindings}" = "true" -o "${pycompss}" = "true" ]; then
-        echo "NOW THE BINDING"
+  if [ "${images}" == "true" ]; then
+    echo "- Generating images"
+    DOCKER=`command -v docker`
+    if [ -z "${DOCKER}" ]; then
+      echo "ERROR: Docker could not be found. Omitting docker image creation"
+    else
+      echo "--- Generating COMPSs base Docker image for Java"
+      mkdir -p "${TMP_DIR}/utils/docker/worker/java/compss/adaptors/nio"
+      mkdir -p "${TMP_DIR}/utils/docker/worker/java/compss/configuration"
+      cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/docker/worker/java/compss/adaptors/nio/"
+      cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/docker/worker/java/compss/configuration/"
+      ${DOCKER} build -t compss/nio-worker-amd64:${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/java"
+      ${DOCKER} build -t compss/nio-worker-amd64:${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/java"
+      if [ "${bindings}" == "true" ] || [ "${pycompss}" == "true" ]; then
+          echo "--- Generating COMPSs base Docker image for Python (PyCOMPSs)"
+      fi
+    fi
+    LXC=`command -v lxc`
+    if [ -z "${LXC}" ]; then
+      echo "ERROR: LXC could not be found. Omitting LXC image creation"
+    else
+      echo "--- Generating COMPSs base LXC image for Java"
+      mkdir -p "${TMP_DIR}/utils/lxc/worker/java/compss/adaptors/nio"
+      mkdir -p "${TMP_DIR}/utils/lxc/worker/java/compss/configuration"
+      cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/lxc/worker/java/compss/adaptors/nio/"
+      cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/lxc/worker/java/compss/configuration/"
+      ${LXC} launch images:alpine/3.10 placeholder
+      ${LXC} file push -pr "${TMP_DIR}"/utils/lxc/worker/java/compss/* placeholder/opt/COMPSs/Runtime
+      sleep 1 # Without this sleep somehow the next command fails. Leave it like this.
+      ${LXC} exec placeholder -- /bin/sh -c "apk add --no-cache --update util-linux openjdk8-jre-base"
+      ${LXC} stop placeholder
+      ${LXC} publish placeholder --alias compss-${COMPSS_VERSION}
+      ${LXC} delete placeholder
+      ${LXC} image edit compss-${COMPSS_VERSION} <<EOF
+properties:
+  description: COMPSs ${COMPSS_VERSION} base image for LXC.
+  os: alpine
+EOF
+      if [ "${bindings}" == "true" ] && [ "${pycompss}" == "true" ]; then
+        echo "--- Generating COMPSs base LXC image for Python (PyCOMPSs)"
+      fi
     fi
   fi
 
@@ -728,7 +761,7 @@ install_compss() {
 
   echo "- Adding runcompss to profile..."
   echo "# COMPSs environment variables" >> $envFile
-  echo "export PATH=\$PATH:${targetDir}/Runtime/scripts/user:${targetDir}/Runtime/scripts/utils" >> $envFile
+  echo "export PATH=\$PATH:${targetDir}/Runtime/scripts/user:${targetDir}/Runtime/scripts/utils:${targetDir}/Runtime/scripts/utils/container" >> $envFile
   echo "- Runcompss added to user profile"
   echo " "
   echo "- Adding compss-engine.jar to profile..."

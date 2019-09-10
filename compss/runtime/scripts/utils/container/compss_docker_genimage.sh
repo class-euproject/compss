@@ -40,7 +40,7 @@ DEFAULT_WD=/compss
 
 usage() {
     cat <<EOF
-Script for the creation of a COMPSs application image. Available flags:
+Script for the creation of a COMPSs application Docker image. Available flags:
 
 Mandatory flags:
     --name [name]       Name to give to the created image.
@@ -78,7 +78,6 @@ WORKER_TYPE=${DEFAULT_WORKER_TYPE}
 APP_DIR=${DEFAULT_APP_DIR}
 APP_WD=${DEFAULT_WD}
 BASE_TYPE=${DEFAULT_BASE_TYPE}
-COMPSS_VERSION=${DEFAULT_COMPSS_VERSION}
 while [ "$1" != "" ]; do
     case $1 in
         -h | --help)
@@ -119,8 +118,8 @@ fi
 if [ -z "$BASE_IMAGE_NAME" ]; then
     warn "No base image specified."
     if [ -z "$COMPSS_VERSION" ]; then
-        warn "No version specified. Falling back to default base image: ${BASE_TYPE}/${WORKER_TYPE}-worker-${ARCH}:${COMPSS_VERSION}"
-        BASE_IMAGE_NAME="${BASE_TYPE}/${WORKER_TYPE}-worker-${ARCH}:${COMPSS_VERSION}"
+        warn "No version specified. Falling back to default base image: ${BASE_TYPE}/${WORKER_TYPE}-worker-${ARCH}:${DEFAULT_COMPSS_VERSION}"
+        BASE_IMAGE_NAME="${BASE_TYPE}/${WORKER_TYPE}-worker-${ARCH}:${DEFAULT_COMPSS_VERSION}"
     else
         BASE_IMAGE_NAME="${BASE_TYPE}/${WORKER_TYPE}-worker-${ARCH}:${COMPSS_VERSION}"
     fi

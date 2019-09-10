@@ -23,6 +23,20 @@ pipeline {
                 }
             }
         }
+        stage("Building app and its images") {
+            steps {
+                dir("/root/framework/tests/containers") {
+                    sh "mvn -DskipTests clean package exec:exec@genimage-docker exec:exec@genimage-lxc"
+                }
+            }
+        }
+        stage("Testing") {
+            steps {
+                dir("/root/framework/tests/containers") {
+                    sh "mvn test"
+                }
+            }
+        }
     }
 
     post {
@@ -38,8 +52,9 @@ pipeline {
             updateGitlabCommitStatus name: 'Compiling', state: 'success'
         }
         always{
+            junit "/root/framework/tests/containers/target/surefire-reports/*.xml"
             deleteDir()
-            sh "docker rmi bsc-ppc/compss-docker-test -f"
+            // sh "docker rmi bsc-ppc/compss-docker-test -f"
         }
     }
 
