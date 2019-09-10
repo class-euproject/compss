@@ -217,11 +217,11 @@ get_args() {
         ;;
       x)
         # Custom LXC value
-        lxc=false
+        lxc=true
         ;;
       X)
         # Custom LXC value
-        lxc=true
+        lxc=false
         ;;
       N)
         # Disables all flags
