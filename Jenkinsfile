@@ -49,10 +49,10 @@ pipeline {
                     to: 'unai.perez@bsc.es'
         }
         success {
+            junit "/root/framework/tests/containers/target/surefire-reports/*.xml"
             updateGitlabCommitStatus name: 'Compiling', state: 'success'
         }
         always{
-            junit "/root/framework/tests/containers/target/surefire-reports/*.xml"
             deleteDir()
             // sh "docker rmi bsc-ppc/compss-docker-test -f"
         }
