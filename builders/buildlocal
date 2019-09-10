@@ -25,6 +25,7 @@ DEFAULT_TRACING=true
 DEFAULT_AUTOPARALLEL=true
 DEFAULT_KAFKA=true
 DEFAULT_DOCKER=true
+DEFAULT_LXC=true
 DEFAULT_USER=false
 DEFAULT_TARGET_DIR=/opt/COMPSs
 DEFAULT_MVN_TESTS=""
@@ -144,7 +145,7 @@ display_error() {
 
 get_args() {
   # Parse COMPSs Options
-  while getopts hvmMbBpPtTaAkKiIN-: flag; do
+  while getopts hvmMbBpPtTaAkKdDxXN-: flag; do
     # Treat the argument
     case "$flag" in
       h)
@@ -320,7 +321,8 @@ get_args() {
             pycompss=false
             autoparallel=false
             kafka=false
-            images=false
+            docker=false
+            lxc=false
             ;;
           user-exec=*)
             # Enables specific user mvn execution
