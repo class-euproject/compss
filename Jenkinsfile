@@ -25,15 +25,17 @@ pipeline {
         }
         stage("Building app and its images") {
             steps {
-                dir("/root/framework/tests/containers") {
-                    sh "mvn -DskipTests clean package exec:exec@genimage-docker exec:exec@genimage-lxc"
+                script {
+                    sh "echo " + pwd()
+                    sh "mvn -f /root/framework/tests/containers/pom.xml -DskipTests" +
+                            "clean package exec:exec@genimage-docker exec:exec@genimage-lxc"
                 }
             }
         }
         stage("Testing") {
             steps {
-                dir("/root/framework/tests/containers") {
-                    sh "mvn test"
+                script {
+                    sh "mvn -f /root/framework/tests/containers/pom.xml test"
                 }
             }
         }
