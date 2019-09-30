@@ -2,7 +2,7 @@ pipeline {
     agent {
         dockerfile {
             filename "Dockerfile"
-            additionalBuildArgs  '-t bsc-ppc/compss-docker-test:${env.BUILD_NUMBER}'
+            additionalBuildArgs "-t bsc-ppc/compss-docker-test:${env.BUILD_NUMBER}"
             args "--privileged -e DOCKER_HOST=unix:///var/run/docker.sock -u root:root -v /home/`whoami`/.m2/repository:/root/.m2"
         }
     }
@@ -51,13 +51,13 @@ pipeline {
                     to: 'unai.perez@bsc.es'
         }
         success {
-            sh "docker cp -r `docker ps -q -f \"ancestor=bsc-ppc/compss-docker-test:${env.BUILD_NUMBER}\"`:/root/framework/tests/containers/target/surefire-reports ${WORKSPACE}"
+            sh "docker cp `docker ps -q -f \"ancestor=bsc-ppc/compss-docker-test:${env.BUILD_NUMBER}\"`:/root/framework/tests/containers/target/surefire-reports ${WORKSPACE}"
             junit "${WORKSPACE}/surefire-reports/*.xml"
             updateGitlabCommitStatus name: 'Compiling', state: 'success'
         }
         always{
             deleteDir()
-            // sh "docker rmi bsc-ppc/compss-docker-test -f"
+            sh "docker rmi bsc-ppc/compss-docker-test:${env.BUILD_NUMBER} -f"
         }
     }
 
