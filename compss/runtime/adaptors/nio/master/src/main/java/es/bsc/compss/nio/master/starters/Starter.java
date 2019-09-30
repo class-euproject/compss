@@ -134,9 +134,10 @@ public abstract class Starter {
     protected void checkWorker(NIONode n, String name) {
         long delay = WAIT_TIME_UNIT;
         long totalWait = 0;
+        int tries = 20;
         CommandCheckWorker cmd = new CommandCheckWorker(DEPLOYMENT_ID, name);
-
         do {
+
             if (DEBUG) {
                 LOGGER.debug("[WorkerStarter] Sending check command to worker " + name);
             }
@@ -149,14 +150,14 @@ public abstract class Starter {
 
             // Sleep before next iteration
             try {
-                LOGGER.debug("[WorkerStarter] Waiting to send next check worker command with delay " + delay);
-                Thread.sleep(delay);
+                LOGGER.debug("[WorkerStarter] Waiting to send next check worker command with delay " + 300);
+                Thread.sleep(300);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
-            totalWait += delay;
-            delay = (delay < 3_900) ? delay * 2 : 4_000;
-        } while (!this.workerIsReady && totalWait < MAX_WAIT_FOR_INIT && !this.toStop);
+            // totalWait += delay;
+            // delay = (delay < 3_900) ? delay * 2 : 4_000;
+        } while (!this.workerIsReady && --tries > 0 && !this.toStop);
     }
 
     // Arguments needed for persistent_worker.sh
@@ -168,6 +169,8 @@ public abstract class Starter {
             ProcessBuilder pb = new ProcessBuilder();
             pb.environment().remove(Tracer.LD_PRELOAD);
             pb.command(cmd);
+
+            long start = System.currentTimeMillis();
             Process process = pb.start();
 
             final InputStream stderr = process.getErrorStream();
@@ -176,6 +179,8 @@ public abstract class Starter {
             process.getOutputStream().close();
 
             process.waitFor();
+            long end = System.currentTimeMillis();
+            LOGGER.debug("The script ran for " + (end - start) + " milliseconds");
             processOut.setExitValue(process.exitValue());
 
             LOGGER.debug("Worker creation logs for " + this.nw.getName());
