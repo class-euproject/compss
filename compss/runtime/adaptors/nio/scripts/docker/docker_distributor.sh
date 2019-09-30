@@ -92,6 +92,7 @@ charamount() {
 
 PULL_IMAGE=false
 PUSH_IMAGE=false
+FAIL_IF_PULL=false
 SSH_USER=`whoami`
 REUSE_EXISTING=false
 CHECK_IMAGE=true
@@ -108,6 +109,8 @@ while [ "$1" != "" ]; do
             shift;;
         --pull)
             PULL_IMAGE=true;;
+        --fail-if-pull)
+            FAIL_IF_PULL=true;;
         --push)
             PUSH_IMAGE=true
             PULL_IMAGE=true;;
@@ -143,7 +146,7 @@ done
 
 DOCKER=`command -v docker`
 if [ -z "${DOCKER}" ]; then
-    warn "Command docker does not exist"
+    warn "Command docker could not be found"
 fi
 
 LAUNCH_COMMAND=""
@@ -174,23 +177,38 @@ if [ "$PUSH_IMAGE" = "true" ]; then
     if [ -z "${DOCKER}" ]; then
         error "To push an image, the docker CLI needs to be installed."
     fi
+    if [ `charamount "${IMAGE_NAME}" "/"` -eq 2 -a -z ${REPOSITORY} ]; then
+        REPOSITORY=`echo "${IMAGE_NAME}" | cut -d"/" -f1`
+        IMAGE_NAME=`echo ${IMAGE_NAME} | cut -d"/" -f2-`
+    fi
+    if [ `charamount ${IMAGE_NAME} ":"` -eq 1 ]; then
+        IMAGE_TAG=`echo ${IMAGE_NAME} | cut -d":" -f2`
+        IMAGE_NAME=`echo ${IMAGE_NAME} | cut -d":" -f1`
+    fi
     if [ -z "$REPOSITORY" ]; then
-        warn "The image has to be pushed, but no repository was defined. It will be pushed to the DockerHub"
-        PUSH_FAILED=`${DOCKER} push ${IMAGE_NAME} | echo $?`
-        if [ ${PUSH_FAILED} -ne 0 ]; then
-            warn "The image could not be pushed. The repository might be down."
-            warn "The execution will carry on, assuming the images might already be in the worker."
+        warn "The image has to be pushed, but no repository was defined. It will be pushed to the DockerHub."
+        echo "curl --silent --fail -lSL https://index.docker.io/v1/repositories/${IMAGE_NAME}/tags/${IMAGE_TAG:-latest}"
+        curl --silent --fail -lSL https://index.docker.io/v1/repositories/${IMAGE_NAME}/tags/${IMAGE_TAG:-latest}
+        if [ $? -ne 0 ]; then
+            ${DOCKER} push ${IMAGE_NAME}
+            PUSH_FAILED=$?
+            if [ ${PUSH_FAILED} -ne 0 ]; then
+                warn "The image could not be pushed. The repository might be down."
+                warn "The execution will carry on, assuming the images might already be in the worker."
+            fi
+        else
+            warn "The image was already pushed, or another image with the same already existed."
         fi
     else
-        CLEAN_IMAGE_NAME=$(echo "$IMAGE_NAME" | cut -d: -f1)
-        CLEAN_IMAGE_TAG=$(echo "$IMAGE_NAME" | cut -d: -f2)
-        REPO_OUTPUT=$(curl --fail --silent ${REPOSITORY}/v2/${CLEAN_IMAGE_NAME}/tags/list)
+        # CLEAN_IMAGE_NAME=$(echo "$IMAGE_NAME" | cut -d: -f1)
+        # CLEAN_IMAGE_TAG=$(echo "$IMAGE_NAME" | cut -d: -f2)
+        REPO_OUTPUT=$(curl --fail --silent ${REPOSITORY}/v2/${IMAGE_NAME}/tags/list)
         REPO_TAGS=$(echo ${REPO_OUTPUT} | cut -b$(($(echo ${REPO_OUTPUT} | grep -bo "tags\"\:\[" | sed 's/:.*$//') + 8))- | cut -d] -f1)
-        if [ $(echo ${REPO_TAGS} | grep -q ${CLEAN_IMAGE_TAG} && echo true || echo false) = "false" ]; then
+        if [ $(echo ${REPO_TAGS} | grep -q ${IMAGE_TAG:-latest} && echo true || echo false) = "false" ]; then
             warn "The image is not available in the repository. Pushing."
             ${DOCKER} tag ${IMAGE_NAME} ${REPOSITORY}/${IMAGE_NAME}
             ${DOCKER} push ${REPOSITORY}/${IMAGE_NAME}
-            PUSH_FAILED=`echo $?`
+            PUSH_FAILED=$?
             if [ ${PUSH_FAILED} -ne 0 ]; then
                 warn "The image could not be pushed. The repository might be down."
                 warn "The execution will carry on, assuming the images might already be in the worker."
@@ -208,4 +226,4 @@ if [ -n "${PORT_RANGE}" ]; then
     fi
 fi
 
-ssh -o BatchMode=yes -o StrictHostKeyChecking=no ${SSH_USER}@${WORKER_ADDRESS} "/bin/sh -s" < ${COMPSS_HOME-/opt/COMPSs}/Runtime/scripts/system/adaptors/nio/docker/docker_worker.sh "${IMAGE_NAME}" "${IMAGE_ID-null}" "${CONTAINER_NAME}" "${PULL_IMAGE}" "${CONTAINER_PORTS:-null}" "${PORT_RANGE:-null}" "${CONTAINER_VOLUMES:-null}" "${REPOSITORY:-null}" "${REUSE_EXISTING}" "${LAUNCH_COMMAND}"
+ssh -o BatchMode=yes -o StrictHostKeyChecking=no ${SSH_USER}@${WORKER_ADDRESS} "/bin/sh -s" < ${COMPSS_HOME:-/opt/COMPSs}/Runtime/scripts/system/adaptors/nio/docker/docker_worker.sh "${IMAGE_NAME}" "${IMAGE_ID-null}" "${CONTAINER_NAME}" "${PULL_IMAGE}" "${CONTAINER_PORTS:-null}" "${PORT_RANGE:-null}" "${CONTAINER_VOLUMES:-null}" "${REPOSITORY:-null}" "${REUSE_EXISTING}" "${FAIL_IF_PULL}" "${LAUNCH_COMMAND}"

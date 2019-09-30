@@ -27,15 +27,15 @@ pipeline {
             steps {
                 script {
                     sh "echo " + pwd()
-                    sh "mvn -f /root/framework/tests/containers/pom.xml -DskipTests" +
-                            "clean package exec:exec@genimage-docker exec:exec@genimage-lxc"
+                    sh "mvn -f /root/framework/tests/containers/pom.xml -DskipTests " +
+                            "clean package exec:exec@genimage-docker"
                 }
             }
         }
         stage("Testing") {
             steps {
                 script {
-                    sh "mvn -f /root/framework/tests/containers/pom.xml test"
+                    sh "cd /root/framework/tests/containers && mvn test"
                 }
             }
         }

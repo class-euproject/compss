@@ -756,13 +756,14 @@ install_compss() {
       mkdir -p "${TMP_DIR}/utils/lxc/worker/java/compss/configuration"
       cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/lxc/worker/java/compss/adaptors/nio/"
       cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/lxc/worker/java/compss/configuration/"
-      ${LXC} launch images:alpine/3.10 placeholder
-      ${LXC} file push -pr "${TMP_DIR}"/utils/lxc/worker/java/compss/* placeholder/opt/COMPSs/Runtime
+      LXC_CONTAINER_NAME="placeholder-`uuidgen | cut -f1 -d"-"`"
+      ${LXC} launch images:alpine/3.10 ${LXC_CONTAINER_NAME}
+      ${LXC} file push -pr "${TMP_DIR}"/utils/lxc/worker/java/compss/* ${LXC_CONTAINER_NAME}/opt/COMPSs/Runtime
       sleep 1 # Without this sleep somehow the next command fails. Leave it like this.
-      ${LXC} exec placeholder -- /bin/sh -c "apk add --no-cache --update util-linux openjdk8-jre-base"
-      ${LXC} stop placeholder
-      ${LXC} publish placeholder --alias compss-${COMPSS_VERSION}
-      ${LXC} delete placeholder
+      ${LXC} exec ${LXC_CONTAINER_NAME} -- /bin/sh -c "apk add --no-cache --update util-linux openjdk8-jre-base"
+      ${LXC} stop ${LXC_CONTAINER_NAME}
+      ${LXC} publish ${LXC_CONTAINER_NAME} --alias compss-${COMPSS_VERSION}
+      ${LXC} delete ${LXC_CONTAINER_NAME}
       ${LXC} image edit compss-${COMPSS_VERSION} <<EOF
 properties:
   description: COMPSs ${COMPSS_VERSION} base image for LXC.

@@ -103,7 +103,18 @@ public abstract class ContainerStarter extends Starter {
         final String hostname = nw.getName();
 
         // workerPort
-        // masterName
+
+        if ("null".equals(masterName)) {
+            if ((MASTER_NAME_PROPERTY != null) && (!MASTER_NAME_PROPERTY.equals(""))
+                && (!MASTER_NAME_PROPERTY.equals("null"))) {
+                // Set the hostname from the defined property
+                masterName = MASTER_NAME_PROPERTY;
+            } else {
+                if (nw.getName().matches(IP_REGEX) && !"127.0.0.1".equals(nw.getName())) {
+                    masterName = inferMasterAddress();
+                }
+            }
+        }
 
         final int masterPort = NIOAdaptor.MASTER_PORT;
 

@@ -15,15 +15,6 @@ error() {
     exit 1
 }
 
-pull() {
-    if [ "$REPOSITORY" != "null" ]; then
-        docker pull "${REPOSITORY}/${IMAGE_NAME}" > /dev/null
-        docker tag "${REPOSITORY}/${IMAGE_NAME}" "${IMAGE_NAME}"
-    else
-        docker pull "${IMAGE_NAME}" > /dev/null
-    fi
-}
-
 IMAGE_NAME="$1"
 IMAGE_ID="$2"
 CONTAINER_NAME="$3"
@@ -33,8 +24,9 @@ PORT_RANGE="$6"
 CONTAINER_VOLUMES="$7"
 REPOSITORY="$8"
 REUSE_EXISTING="$9"
+FAIL_IF_PULL="${10}"
 
-shift 9
+shift 10
 LAUNCH_COMMAND=""
 for ARG in "$@"
 do
@@ -49,25 +41,74 @@ do
     fi
 done
 
+DOCKER=`command -v docker`
+if [ -z "${DOCKER}" ]; then
+    warn "Command docker could not be found"
+fi
+
+DOCKER_CHECK_ERR="`${DOCKER} ps -a 2>&1 1> /dev/null`"
+if [ $? -ne 0 ]; then
+    error "User `whoami` on worker does not have permission to use Docker: \"${DOCKER_CHECK_ERR}\""
+fi
+
+if [ "${REPOSITORY}" = "null" ]; then
+    unset REPOSITORY
+fi
+
 if [ "${CONTAINER_VOLUMES}" = "null" ]; then
     unset CONTAINER_VOLUMES
 else
     for VOL_OP in `echo ${CONTAINER_VOLUMES} | sed -r 's/,/ /g'`; do
         VOLUME_ORIGIN=`echo $CONTAINER_VOLUMES | cut -d":" -f1`
         if [ ! -f ${VOLUME_ORIGIN} -a ! -d ${VOLUME_ORIGIN} ]; then
-            DOCKER_VOLUMES=`docker volume ls | grep ${VOLUME_ORIGIN}`
+            DOCKER_VOLUMES=`${DOCKER} volume ls | grep ${VOLUME_ORIGIN}`
             if [ -z "${DOCKER_VOLUMES}" ]; then
-                docker volume create ${VOLUME_ORIGIN}
+                ${DOCKER} volume create ${VOLUME_ORIGIN}
             fi
         fi
     done
     CONTAINER_VOLUMES="-v `echo ${CONTAINER_VOLUMES} | sed -r 's/,/ -v /g'`"
 fi
 
-IMAGE_LIST=$(docker images --format "{{.Repository}}:{{.Tag}}" | grep "${IMAGE_NAME}")
+IMAGE_LIST=$(${DOCKER} images --format "{{.Repository}}:{{.Tag}}" | grep "${IMAGE_NAME}")
 if [ "$PULL_IMAGE" = "true" ]; then
-    if [ "$IMAGE_ID" != "null" -a -z "$(docker images --format "{{.ID}}" | grep ${IMAGE_ID})" ] || [ -z "${IMAGE_LIST}" ]; then
-        pull
+    if [ "$IMAGE_ID" != "null" -a -z "$(${DOCKER} images --format "{{.ID}}" | grep ${IMAGE_ID})" ] || [ -z "${IMAGE_LIST}" ]; then
+        echo "The image is not locally stored"
+        if [ "${FAIL_IF_PULL}" = "true" ]; then
+            mkdir -p /tmp/COMPSs/docker
+            if [ -n "`ps aux | grep \"[d]ocker pull ${REPOSITORY}\(/\)\?${IMAGE_NAME}\"`" ]; then
+                error "The image is still being pulled, due to the previous COMPSs execution or due to another user."
+            fi
+            if [ -f "/tmp/COMPSs/docker/$(echo ${IMAGE_NAME} | sed 's/\//_/g').out" ]; then
+                if [ "OK" != "`tail -n 1 "/tmp/COMPSs/docker/$(echo ${IMAGE_NAME} | sed 's/\//_/g')".out`" ]; then
+                    ERROR_MSG="`tail -n 1 /tmp/COMPSs/docker/$(echo ${IMAGE_NAME} | sed 's/\//_/g').out`"
+                    rm "/tmp/COMPSs/docker/$(echo ${IMAGE_NAME} | sed 's/\//_/g')".out
+                    error "There have been prior attempts to pull image ${IMAGE_NAME} from ${REPOSITORY-"the Docker Hub"} that have failed. Check the log: \"${ERROR_MSG}\". Try again after fixing."
+                fi
+            fi
+            if [ -n "$REPOSITORY" ]; then
+                /bin/sh -c "${DOCKER} pull \"${REPOSITORY}/${IMAGE_NAME}\" 2>&1 && ${DOCKER} tag \"${REPOSITORY}/${IMAGE_NAME}\" \"${IMAGE_NAME}\" 2>&1 && echo \"OK\"" 2>&1 > /tmp/COMPSs/docker/$(echo ${IMAGE_NAME} | sed 's/\//_/g').out &
+            else
+                /bin/sh -c "${DOCKER} pull \"${IMAGE_NAME}\" 2>&1 && echo \"OK\"" > /tmp/COMPSs/docker/$(echo ${IMAGE_NAME} | sed 's/\//_/g').out &
+            fi
+            error "The image is not available in the worker host. It is being pulled now, but the worker will be marked as failed."
+        else
+            if [ -n "$REPOSITORY" ]; then
+                PULL_ERR=`${DOCKER} pull "${REPOSITORY}/${IMAGE_NAME}" 2>&1 1>/dev/null`
+                if [ $? -ne 0 ]; then
+                    error "An error happened when pulling image ${IMAGE_NAME} from the Docker Hub: ${PULL_ERR}"
+                fi
+                ${DOCKER} tag "${REPOSITORY}/${IMAGE_NAME}" "${IMAGE_NAME}"
+                if [ $? -ne 0 ]; then
+                    IMAGE_NAME="${REPOSITORY}/${IMAGE_NAME}"
+                fi
+            else
+                PULL_ERR=`${DOCKER} pull "${IMAGE_NAME}" 2>&1 1>/dev/null`
+                if [ $? -ne 0 ]; then
+                    error "An error happened when pulling image ${IMAGE_NAME} from the Docker Hub: ${PULL_ERR}"
+                fi
+            fi
+        fi
     fi
 elif [ -z "${IMAGE_LIST}" ]; then
     error "The image is not locally stored and it is specified not to pull it"
@@ -80,14 +121,14 @@ fi
 # if [ "$REUSE_EXISTING" = "true" ]; then
 #     CONTAINER_ID=$(docker ps --filter "ancestor=${IMAGE_NAME}" --format "{{.Names}}" | head -n 1)
 #     if [ -n "${CONTAINER_ID}" ]; then
-#         docker exec -t -d ${CONTAINER_NAME} /bin/sh -c "${LAUNCH_COMMAND}"
-#         echo $(docker port ${CONTAINER_ID} | cut -d"/" -f1 | xargs)
+#         ${DOCKER} exec -t -d ${CONTAINER_NAME} /bin/sh -c "${LAUNCH_COMMAND}"
+#         echo $(${DOCKER} port ${CONTAINER_ID} | cut -d"/" -f1 | xargs)
 #         exit 0
 #     fi
 # fi
 
 if [ "$PORT_RANGE" != "null" ]; then
-    ALL_PORT_LIST=$(docker ps --format "{{.Ports}}" | xargs)
+    ALL_PORT_LIST=$(${DOCKER} ps --format "{{.Ports}}" | xargs)
     ALL_PORTS=""
     for P in ${ALL_PORT_LIST}; do
         P=$(echo "$P" | cut -d">" -f2 | cut -d"/" -f1)
@@ -156,20 +197,13 @@ fi
 #             \"Binds\": [ $CONTAINER_VOLUMES ]
 #         }
 #      }" \
-#      http://v`docker version --format "{{.Server.APIVersion}}"`/containers/create?name=${CONTAINER_NAME} > /dev/null
-docker run -d -t `echo ${CONTAINER_PORTS} | sed 's/,/ /g' | xargs printf -- "-p %s"` ${CONTAINER_VOLUMES} --name ${CONTAINER_NAME} ${IMAGE_NAME} /bin/sh -c "${LAUNCH_COMMAND}" > /dev/null
-#docker exec -t -d ${CONTAINER_NAME} /bin/sh -c "${LAUNCH_COMMAND}"
+#      http://v`${DOCKER} version --format "{{.Server.APIVersion}}"`/containers/create?name=${CONTAINER_NAME} > /dev/null
+${DOCKER} run -d -t `echo ${CONTAINER_PORTS} | sed 's/,/ /g' | xargs printf -- "-p %s"` ${CONTAINER_VOLUMES} --name ${CONTAINER_NAME} ${IMAGE_NAME} /bin/sh -c "${LAUNCH_COMMAND}" > /dev/null &
+#${DOCKER} exec -t -d ${CONTAINER_NAME} /bin/sh -c "${LAUNCH_COMMAND}"
+
 CREATION_FAILED=$?
 if [ ${CREATION_FAILED} -ne 0 ]; then
     error "The creation of the container failed"
-    exit ${CREATION_FAILED}
-fi
-
-docker start ${CONTAINER_NAME} > /dev/null
-START_FAILED=$?
-if [ ${START_FAILED} -ne 0 ]; then
-    error "Container could not be started."
-    exit ${START_FAILED}
 fi
 
 if [ "$PORT_RANGE" != null ]; then
