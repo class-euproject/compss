@@ -3,7 +3,8 @@ pipeline {
         dockerfile {
             filename "Dockerfile"
             additionalBuildArgs "-t bsc-ppc/compss-docker-test:${env.BUILD_NUMBER}"
-            args "--privileged -e DOCKER_HOST=unix:///var/run/docker.sock -u root:root -v /home/`whoami`/.m2/repository:/root/.m2"
+            args "--privileged -e DOCKER_HOST=unix:///var/run/docker.sock -u root:root" +
+                    " -v /home/`whoami`/.m2/repository:/root/.m2 -v ${WORKSPACE}/junit:/root/junit"
         }
     }
 
@@ -11,7 +12,7 @@ pipeline {
         stage("Environment setup") {
             steps {
                 script {
-                    sh "nohup lxd &"
+                    // sh "nohup lxd &"
                     sh "nohup dockerd &"
                 }
             }
@@ -26,7 +27,6 @@ pipeline {
         stage("Building app and its images") {
             steps {
                 script {
-                    sh "echo " + pwd()
                     sh "mvn -f /root/framework/tests/containers/pom.xml -DskipTests " +
                             "clean package exec:exec@genimage-docker"
                 }
@@ -51,13 +51,13 @@ pipeline {
                     to: 'unai.perez@bsc.es'
         }
         success {
-            sh "docker cp `docker ps -q -f \"ancestor=bsc-ppc/compss-docker-test:${env.BUILD_NUMBER}\"`:/root/framework/tests/containers/target/surefire-reports ${WORKSPACE}"
-            junit "${WORKSPACE}/surefire-reports/*.xml"
+            sh "cp /root/framework/tests/containers/target/surefire-reports/*.xml /root/junit/"
+            junit "${WORKSPACE}/junit"
             updateGitlabCommitStatus name: 'Compiling', state: 'success'
         }
         always{
             deleteDir()
-            sh "docker rmi bsc-ppc/compss-docker-test:${env.BUILD_NUMBER} -f"
+            //sh "docker rmi bsc-ppc/compss-docker-test:${env.BUILD_NUMBER} -f"
         }
     }
 
