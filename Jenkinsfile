@@ -4,7 +4,7 @@ pipeline {
             filename "Dockerfile"
             additionalBuildArgs "-t bsc-ppc/compss-docker-test:${env.BUILD_NUMBER}"
             args "--privileged -e DOCKER_HOST=unix:///var/run/docker.sock -u root:root" +
-                    " -v /home/`whoami`/.m2/repository:/root/.m2 -v ${WORKSPACE}/junit:/root/junit"
+                    " -v /home/`whoami`/.m2/repository:/root/.m2 -v ${env.WORKSPACE}/junit:/root/junit"
         }
     }
 
@@ -52,12 +52,14 @@ pipeline {
         }
         success {
             sh "cp /root/framework/tests/containers/target/surefire-reports/*.xml /root/junit/"
-            junit "${WORKSPACE}/junit"
+            junit "${env.WORKSPACE}/junit"
             updateGitlabCommitStatus name: 'Compiling', state: 'success'
         }
         always{
-            deleteDir()
-            //sh "docker rmi bsc-ppc/compss-docker-test:${env.BUILD_NUMBER} -f"
+            node("master") {
+                deleteDir()
+                sh "docker rmi bsc-ppc/compss-docker-test:${env.BUILD_NUMBER} -f"
+            }
         }
     }
 
