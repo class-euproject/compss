@@ -114,8 +114,9 @@ public abstract class PipedMirror implements ExecutionPlatformMirror<PipePair> {
     private void startPipeBuilder(InvocationContext context) {
         String installDir = context.getInstallDir();
         String piperScript = installDir + PIPER_SCRIPT_RELATIVE_PATH + PIPE_SCRIPT_NAME;
-        LOGGER.debug("PIPE Script: " + piperScript);
         String args = constructPipeBuilderArgs(context);
+        LOGGER.debug("PIPE Script: " + piperScript);
+        LOGGER.debug("PIPE Args: " + args);
         LOGGER.info("Init piper PipeBuilder");
         ProcessBuilder pb = new ProcessBuilder(piperScript, args);
         try {

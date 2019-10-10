@@ -618,10 +618,10 @@ install_compss() {
   echo "--- Copy adaptors"
   find "${TMP_DIR}/compss/runtime/adaptors" -name pom.xml -delete
   find "${TMP_DIR}/compss/runtime/adaptors" -name "*.iml" -delete
-  rm -r "${TMP_DIR}/compss/runtime/adaptors/commons"
-  rm -r "${TMP_DIR}/compss/runtime/adaptors/execution"
-  rm -r "${TMP_DIR}/compss/runtime/adaptors/engine"
-  rm -r "${TMP_DIR}/compss/runtime/adaptors/target"
+  rm -rf "${TMP_DIR}/compss/runtime/adaptors/commons"
+  rm -rf "${TMP_DIR}/compss/runtime/adaptors/execution"
+  rm -rf "${TMP_DIR}/compss/runtime/adaptors/engine"
+  rm -rf "${TMP_DIR}/compss/runtime/adaptors/target"
   path_source=${TMP_DIR}/compss/runtime/adaptors
   path_target=${targetDir}/Runtime/adaptors
   for adaptor in ${path_source}/*; do
@@ -739,9 +739,19 @@ install_compss() {
       cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/docker/worker/java/compss/adaptors/nio/"
       cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/docker/worker/java/compss/configuration/"
       ${DOCKER} build -t compss/nio-worker-amd64:${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/java"
-      ${DOCKER} build -t compss/nio-worker-amd64:${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/java"
       if [ "${bindings}" == "true" ] || [ "${pycompss}" == "true" ]; then
-          echo "--- Generating COMPSs base Docker image for Python (PyCOMPSs)"
+        echo "--- Generating COMPSs base Docker image for Python (PyCOMPSs)"
+        mkdir -p "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/adaptors/nio"
+        mkdir -p "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/configuration"
+        mkdir -p "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/scripts/system/adaptors/nio/pipers"
+        mkdir -p "${TMP_DIR}/utils/docker/worker/python/compss/Bindings"
+        cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/adaptors/nio/"
+        cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/configuration/"
+        cp -r "${SCRIPT_DIR}/../utils/scripts/containers/bindings_piper.sh" "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/scripts/system/adaptors/nio/pipers/"
+        cp -Lr "${targetDir}/Bindings/" "${TMP_DIR}/utils/docker/worker/python/compss/"
+        rm -rf "${TMP_DIR}/utils/docker/worker/python/compss/Bindings/c"
+        rm -rf "${TMP_DIR}/utils/docker/worker/python/compss/Bindings/python/2"
+        ${DOCKER} build --build-arg COMPSS_VERSION=${COMPSS_VERSION} -t pycompss3/nio-worker-amd64:${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/python"
       fi
     fi
   fi
@@ -771,6 +781,29 @@ properties:
 EOF
       if [ "${bindings}" == "true" ] && [ "${pycompss}" == "true" ]; then
         echo "--- Generating COMPSs base LXC image for Python (PyCOMPSs)"
+#        mkdir -p "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/adaptors/nio"
+#        mkdir -p "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/configuration"
+#        mkdir -p "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/scripts/system/adaptors/nio/pipers"
+#        mkdir -p "${TMP_DIR}/utils/lxc/worker/python/compss/Bindings"
+#        cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/adaptors/nio/"
+#        cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/configuration/"
+#        cp -r "${SCRIPT_DIR}/../utils/scripts/containers/bindings_piper.sh" "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/scripts/system/adaptors/nio/pipers/"
+#        cp -Lr "${targetDir}/Bindings/" "${TMP_DIR}/utils/lxc/worker/python/compss/"
+#        rm -rf "${TMP_DIR}/utils/lxc/worker/python/compss/Bindings/c"
+#        rm -rf "${TMP_DIR}/utils/lxc/worker/python/compss/Bindings/python/2"
+#        LXC_CONTAINER_NAME="placeholder-`uuidgen | cut -f1 -d"-"`"
+#        ${LXC} launch compss-${COMPSS_VERSION} ${LXC_CONTAINER_NAME}
+#        ${LXC} file push -pr "${TMP_DIR}"/utils/lxc/worker/python/compss/* ${LXC_CONTAINER_NAME}/opt/COMPSs/
+#        sleep 1 # Without this sleep somehow the next command fails. Leave it like this.
+#        ${LXC} exec ${LXC_CONTAINER_NAME} -- /bin/sh -c "apk add --no-cache --update python3 && ln -s /usr/bin/python3 /usr/bin/python"
+#        ${LXC} stop ${LXC_CONTAINER_NAME}
+#        ${LXC} publish ${LXC_CONTAINER_NAME} --alias pycompss3-${COMPSS_VERSION}
+#        ${LXC} delete ${LXC_CONTAINER_NAME}
+#        ${LXC} image edit pycompss3-${COMPSS_VERSION} <<EOF
+#properties:
+#  description: PyCOMPSs ${COMPSS_VERSION} base image for LXC.
+#  os: alpine
+#EOF
       fi
     fi
   fi

@@ -342,6 +342,11 @@ public abstract class ContainerStarter extends Starter {
         throw new InitNodeException(msg);
     }
 
+    protected String imageToContainerName(String imageName) {
+        String[] imageSplit = imageName.split("/");
+        return imageSplit[imageSplit.length - 1].split(":")[0];
+    }
+
     protected abstract NIONode distribute(String master, Integer minPort, Integer maxPort) throws InitNodeException;
 
 }

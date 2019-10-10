@@ -137,9 +137,4 @@ public class DockerStarter extends ContainerStarter {
         return new NIONode(this.nw.getName(), Integer.parseInt(output[output.length - 1]));
     }
 
-    private String imageToContainerName(String imageName) {
-        String[] imageSplit = imageName.split("/");
-        return imageSplit[imageSplit.length - 1].split(":")[0];
-    }
-
 }

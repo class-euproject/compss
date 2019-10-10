@@ -102,11 +102,6 @@ public class RotterdamStarter extends ContainerStarter {
         }
     }
 
-    private String imageToContainerName(String imageName) {
-        String[] imageSplit = imageName.split("/");
-        return imageSplit[imageSplit.length - 1].split(":")[0];
-    }
-
     @Override
     protected String[] getStopCommand(int pid) {
         return new String[0];
