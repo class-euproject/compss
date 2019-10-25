@@ -738,7 +738,7 @@ install_compss() {
       mkdir -p "${TMP_DIR}/utils/docker/worker/java/compss/configuration"
       cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/docker/worker/java/compss/adaptors/nio/"
       cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/docker/worker/java/compss/configuration/"
-      ${DOCKER} build -t compss/nio-worker-amd64:${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/java"
+      ${DOCKER} build -t bscppc/compss-worker-$(arch):${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/java"
       if [ "${bindings}" == "true" ] || [ "${pycompss}" == "true" ]; then
         echo "--- Generating COMPSs base Docker image for Python (PyCOMPSs)"
         mkdir -p "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/adaptors/nio"
@@ -751,7 +751,7 @@ install_compss() {
         cp -Lr "${targetDir}/Bindings/" "${TMP_DIR}/utils/docker/worker/python/compss/"
         rm -rf "${TMP_DIR}/utils/docker/worker/python/compss/Bindings/c"
         rm -rf "${TMP_DIR}/utils/docker/worker/python/compss/Bindings/python/2"
-        ${DOCKER} build --build-arg COMPSS_VERSION=${COMPSS_VERSION} -t pycompss3/nio-worker-amd64:${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/python"
+        ${DOCKER} build --build-arg COMPSS_VERSION=${COMPSS_VERSION} -t bscppc/pycompss3-worker-$(arch):${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/python"
       fi
     fi
   fi

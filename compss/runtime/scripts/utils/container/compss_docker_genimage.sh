@@ -14,25 +14,8 @@ charamount() {
     echo "$STR" | awk -F"$CHAR" '{print NF-1}'
 }
 
-arch_trans() {
-    if [ -z "$1" ]; then
-        # No input
-        echo "Input must be provided"
-        exit 1
-    # Supported architectures
-    elif [ "$1" = "x86_64" -o "$1" = "amd64" ]; then
-        echo "amd64"
-    elif [ "$1" = "armv7l" ]; then
-        echo "arm32v7"
-    # Unsupported architectures
-    else
-        echo "Unsupported architecture detected"
-        exit 1
-    fi
-}
-
 DEFAULT_BASE_TYPE=compss
-DEFAULT_ARCH=$(arch_trans `arch`)
+DEFAULT_ARCH=`arch`
 DEFAULT_WORKER_TYPE=nio
 DEFAULT_COMPSS_VERSION=2.5.rc1907
 DEFAULT_APP_DIR=.
@@ -51,10 +34,10 @@ Optional flags:
         or
     --version [version] Version of COMPSs to use. If this is specified, the name
                         of the base image will automatically fall back to:
-                        ${DEFAULT_BASE_TYPE}/${DEFAULT_WORKER_TYPE}-worker-${DEFAULT_ARCH}:\$VERSION
+                        bscppc/${DEFAULT_BASE_TYPE}-worker-${DEFAULT_ARCH}:\$VERSION
 
             If neither are used, the used image will automatically fall back to:
-              ${DEFAULT_BASE_TYPE}/${DEFAULT_WORKER_TYPE}-worker-${DEFAULT_ARCH}:${DEFAULT_COMPSS_VERSION}
+              bscppc/${DEFAULT_BASE_TYPE}-worker-${DEFAULT_ARCH}:${DEFAULT_COMPSS_VERSION}
 
     --dir [app dir]     Directory in which the app and the required files are
                         stored. MUST BE A RELATIVE PATH. Default: "."
@@ -119,9 +102,9 @@ if [ -z "$BASE_IMAGE_NAME" ]; then
     warn "No base image specified."
     if [ -z "$COMPSS_VERSION" ]; then
         warn "No version specified. Falling back to default base image: ${BASE_TYPE}/${WORKER_TYPE}-worker-${ARCH}:${DEFAULT_COMPSS_VERSION}"
-        BASE_IMAGE_NAME="${BASE_TYPE}/${WORKER_TYPE}-worker-${ARCH}:${DEFAULT_COMPSS_VERSION}"
+        BASE_IMAGE_NAME="bscppc/${BASE_TYPE}-worker-${ARCH}:${DEFAULT_COMPSS_VERSION}"
     else
-        BASE_IMAGE_NAME="${BASE_TYPE}/${WORKER_TYPE}-worker-${ARCH}:${COMPSS_VERSION}"
+        BASE_IMAGE_NAME="bscppc/${BASE_TYPE}-worker-${ARCH}:${COMPSS_VERSION}"
     fi
 fi
 
