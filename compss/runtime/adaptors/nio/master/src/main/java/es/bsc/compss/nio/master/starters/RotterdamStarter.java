@@ -2,6 +2,7 @@ package es.bsc.compss.nio.master.starters;
 
 import com.google.gson.Gson;
 
+import com.google.gson.GsonBuilder;
 import es.bsc.comm.nio.NIONode;
 import es.bsc.compss.exceptions.InitNodeException;
 import es.bsc.compss.nio.master.NIOWorkerNode;
@@ -12,8 +13,8 @@ import es.bsc.compss.nio.master.configuration.rotterdam.response.RotterdamTaskCr
 import es.bsc.compss.nio.master.configuration.rotterdam.response.RotterdamTaskRequestStatus;
 
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
-import java.util.stream.IntStream;
 
 import org.apache.commons.io.IOUtils;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -46,7 +47,7 @@ public class RotterdamStarter extends ContainerStarter {
         this.imageName = nw.getConfiguration().getProperty("ImageName");
         this.httpClient = HttpClients.createDefault();
         this.replicas =
-            Optional.ofNullable(nw.getConfiguration().getProperty("replicas")).map(Integer::parseInt).orElse(1);
+            Optional.ofNullable(nw.getConfiguration().getProperty("Replicas")).map(Integer::parseInt).orElse(1);
     }
 
     @Override
@@ -64,11 +65,14 @@ public class RotterdamStarter extends ContainerStarter {
         containerConfig.setArgs(Arrays.asList("mkdir -p " + this.nw.getWorkingDir() + "/jobs && " + "mkdir -p "
             + this.nw.getWorkingDir() + "/log && " + String.join(" ", getStartCommand(43001, master))));
 
-        IntStream.range(minPort, maxPort).forEach(n -> containerConfig.addPort(n, n, "tcp"));
+        // IntStream.range(minPort, maxPort).forEach(n -> containerConfig.addPort(n, n, "tcp"));
+        containerConfig.addPort(43001, minPort, "tcp");
 
-        Gson g = new Gson();
+        // Gson g = new Gson();
+        Gson g = new GsonBuilder().setPrettyPrinting().create();
         try {
             createConfig.addContainer(containerConfig);
+            System.out.println(g.toJson(createConfig));
 
             HttpPost request = new HttpPost(SERVER_BASE.concat(TASK_CREATE_URL));
             request.setEntity(new StringEntity(g.toJson(createConfig)));
@@ -88,6 +92,7 @@ public class RotterdamStarter extends ContainerStarter {
                     new HttpGet(SERVER_BASE.concat(String.format(TASK_CHECK_TEMPLATE, dock, name)));
                 CloseableHttpResponse response = httpClient.execute(taskCheckRequest);
                 String responseJson = IOUtils.toString(response.getEntity().getContent(), "utf-8");
+                System.out.println(g.toJson(g.fromJson(responseJson, Map.class)));
                 status = g.fromJson(responseJson, RotterdamTaskRequestStatus.class);
                 if (response.getStatusLine().getStatusCode() == 200 && "ok".equals(status.getResp())
                     && !status.getTask().getPods().isEmpty()) {

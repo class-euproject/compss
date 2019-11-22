@@ -89,10 +89,10 @@ public class NIOWorkerNode extends COMPSsWorker {
     protected static final boolean DEBUG = LOGGER.isDebugEnabled();
 
     protected NIONode node;
-    private final NIOConfiguration config;
+    protected final NIOConfiguration config;
     private final NIOAdaptor commManager;
     protected boolean started = false;
-    private Starter workerStarter;
+    protected Starter workerStarter;
 
 
     /**
@@ -107,6 +107,11 @@ public class NIOWorkerNode extends COMPSsWorker {
         this.commManager = adaptor;
     }
 
+    public NIOWorkerNode(NIOConfiguration config, NIOAdaptor adaptor, NIONode node) {
+        this(config, adaptor);
+        this.node = node;
+    }
+
     @Override
     public String getName() {
         return this.config.getHost();
@@ -114,7 +119,11 @@ public class NIOWorkerNode extends COMPSsWorker {
 
     @Override
     public void start() throws InitNodeException {
-        NIONode n = null;
+        if (this.node != null) {
+            System.out.println("The node was already created. Skipping Starter initialization");
+            this.started = true;
+            return;
+        }
         try {
             String engine = Optional.ofNullable(config.getProperty("Engine")).orElse("").toLowerCase();
             switch (engine) {
@@ -127,19 +136,22 @@ public class NIOWorkerNode extends COMPSsWorker {
                 case "rotterdam":
                     this.workerStarter = new RotterdamStarter(this);
                     break;
-                case "":
+                // case "rancher":
+                // this.workerStarter = new RancherStarter(this);
+                // break;
+                case "none":
                     this.workerStarter = new WorkerStarter(this);
                     break;
                 default:
                     throw new InitNodeException("Engine " + engine + "not supported");
             }
             synchronized (this.workerStarter) {
-                n = this.workerStarter.startWorker();
-                this.node = n;
+                this.node = this.workerStarter.startWorker();
                 this.started = true;
             }
         } catch (InitNodeException e) {
             ErrorManager.warn("There was an exception when initiating worker " + getName() + ".", e);
+            ErrorManager.error(e.getMessage());
             throw e;
         }
 

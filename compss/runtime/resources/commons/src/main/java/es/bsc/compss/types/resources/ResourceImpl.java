@@ -399,6 +399,10 @@ public abstract class ResourceImpl implements Comparable<Resource>, Resource {
         this.node.stop(sl);
     }
 
+    public Map<String, String> getSharedDisks() {
+        return sharedDisks;
+    }
+
     /**
      * Stops the Execution Manager of the resource.
      */

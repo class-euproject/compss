@@ -20,8 +20,10 @@ import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.comm.Comm;
 import es.bsc.compss.connectors.AbstractConnector;
 import es.bsc.compss.exceptions.ConstructConfigurationException;
+import es.bsc.compss.exceptions.InitNodeException;
 import es.bsc.compss.exceptions.NoResourceAvailableException;
 import es.bsc.compss.log.Loggers;
+import es.bsc.compss.types.COMPSsWorker;
 import es.bsc.compss.types.CloudProvider;
 import es.bsc.compss.types.project.ProjectFile;
 import es.bsc.compss.types.project.exceptions.ProjectFileValidationException;
@@ -432,12 +434,36 @@ public class ResourceLoader {
             config.setPythonpath(app.getPythonpath());
         }
 
-        /* Pass all the information to the ResourceManager to insert it into the Runtime ** */
-        LOGGER.debug("Adding method worker " + name);
-        MethodWorker methodWorker = createMethodWorker(name, mrd, sharedDisks, config);
-        ResourceManager.addStaticResource(methodWorker);
-        // If we have reached this point the method worker has been correctly created
-        return true;
+        if (config.getProperty("Replicas") != null) {
+            if (!"es.bsc.compss.nio.master.NIOAdaptor".equals(config.getAdaptorName())) {
+                ErrorManager.error("Replicas are only supported for use with NIO");
+                throw new RuntimeException("Replicas are only supported for use with NIO");
+            }
+            int taskCount = getValidMinimum(config.getLimitOfTasks(), mrd.getTotalCPUComputingUnits());
+            int taskCountGPU = getValidMinimum(config.getLimitOfGPUTasks(), mrd.getTotalGPUComputingUnits());
+            int taskCountFPGA = getValidMinimum(config.getLimitOfFPGATasks(), mrd.getTotalFPGAComputingUnits());
+            int taskCountOther = getValidMinimum(config.getLimitOfOTHERsTasks(), mrd.getTotalOTHERComputingUnits());
+            Rotterdam2Starter starter = new Rotterdam2Starter(config, Comm.getAdaptor(loadedAdaptor));
+            try {
+                List<COMPSsWorker> workers = starter.create();
+                // DiscoveryThread discovery = starter.createDiscoveryThread(workers, config, mrd, sharedDisks);
+                workers.stream()
+                    .map(wn -> new DynamicMethodWorker(wn.getName(), mrd, wn, taskCount, taskCountGPU, taskCountFPGA, taskCountOther, sharedDisks))
+                    .forEach(wn -> ResourceManager.addDynamicWorker(wn, mrd));
+            } catch (InitNodeException e) {
+                e.printStackTrace();
+                throw new RuntimeException(e);
+            }
+            return true;
+        } else {
+
+            /* Pass all the information to the ResourceManager to insert it into the Runtime ** */
+            LOGGER.debug("Adding method worker " + name);
+            MethodWorker methodWorker = createMethodWorker(name, mrd, sharedDisks, config);
+            ResourceManager.addStaticResource(methodWorker);
+            // If we have reached this point the method worker has been correctly created
+            return true;
+        }
     }
 
     private static boolean loadService(ServiceType sProject,
@@ -507,6 +533,7 @@ public class ResourceLoader {
 
         // Create the method worker
         MethodWorker methodWorker = new MethodWorker(name, rd, mc, sharedDisks);
+
         return methodWorker;
     }
 

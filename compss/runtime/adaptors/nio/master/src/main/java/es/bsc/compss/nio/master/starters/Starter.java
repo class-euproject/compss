@@ -132,9 +132,8 @@ public abstract class Starter {
     }
 
     protected void checkWorker(NIONode n, String name) {
-        long delay = WAIT_TIME_UNIT;
-        long totalWait = 0;
-        int tries = 20;
+        int delay = 300;
+        int tries = 50;
         CommandCheckWorker cmd = new CommandCheckWorker(DEPLOYMENT_ID, name);
         do {
 
@@ -151,12 +150,11 @@ public abstract class Starter {
             // Sleep before next iteration
             try {
                 LOGGER.debug("[WorkerStarter] Waiting to send next check worker command with delay " + 300);
-                Thread.sleep(300);
+                Thread.sleep(delay);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
-            // totalWait += delay;
-            // delay = (delay < 3_900) ? delay * 2 : 4_000;
+            delay = 300 + ((50 - tries) / 10) * 100;
         } while (!this.workerIsReady && --tries > 0 && !this.toStop);
     }
 
