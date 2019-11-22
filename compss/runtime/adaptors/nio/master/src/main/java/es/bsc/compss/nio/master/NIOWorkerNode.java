@@ -125,7 +125,7 @@ public class NIOWorkerNode extends COMPSsWorker {
             return;
         }
         try {
-            String engine = Optional.ofNullable(config.getProperty("Engine")).orElse("").toLowerCase();
+            String engine = Optional.ofNullable(config.getProperty("Engine")).orElse("none").toLowerCase();
             switch (engine) {
                 case "docker":
                     this.workerStarter = new DockerStarter(this);

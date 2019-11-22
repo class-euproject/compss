@@ -447,8 +447,9 @@ public class ResourceLoader {
             try {
                 List<COMPSsWorker> workers = starter.create();
                 // DiscoveryThread discovery = starter.createDiscoveryThread(workers, config, mrd, sharedDisks);
-                workers.stream()
-                    .map(wn -> new DynamicMethodWorker(wn.getName(), mrd, wn, taskCount, taskCountGPU, taskCountFPGA, taskCountOther, sharedDisks))
+                workers
+                    .stream().map(wn -> new DynamicMethodWorker(wn.getName(), mrd, wn, taskCount, taskCountGPU,
+                        taskCountFPGA, taskCountOther, sharedDisks))
                     .forEach(wn -> ResourceManager.addDynamicWorker(wn, mrd));
             } catch (InitNodeException e) {
                 e.printStackTrace();
