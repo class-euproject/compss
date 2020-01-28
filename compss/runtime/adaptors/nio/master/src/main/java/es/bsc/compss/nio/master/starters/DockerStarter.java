@@ -81,7 +81,7 @@ public class DockerStarter extends ContainerStarter {
 
     @Override
     protected NIONode distribute(String master, Integer minPort, Integer maxPort) throws InitNodeException {
-        final String[] command = getStartCommand(43001, master);
+        final String[] command = generateStartCommand(43001, master, "NoTracingHostID");
 
         // String containerId = this.imageToContainerName(this.imageName);
         List<String> cmd = new ArrayList<>();

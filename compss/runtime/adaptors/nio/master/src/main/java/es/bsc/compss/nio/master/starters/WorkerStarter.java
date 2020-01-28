@@ -25,6 +25,7 @@ import es.bsc.compss.log.Loggers;
 import es.bsc.compss.nio.NIOTracer;
 import es.bsc.compss.nio.commands.CommandCheckWorker;
 import es.bsc.compss.nio.master.NIOAdaptor;
+import es.bsc.compss.nio.master.NIOStarterCommand;
 import es.bsc.compss.nio.master.NIOWorkerNode;
 import es.bsc.compss.nio.master.handlers.Ender;
 import es.bsc.compss.nio.master.handlers.ProcessOut;
@@ -44,6 +45,47 @@ import org.apache.logging.log4j.Logger;
 
 
 public class WorkerStarter extends Starter {
+
+    // Logger
+    private static final Logger LOGGER = LogManager.getLogger(Loggers.COMM);
+    private static final boolean DEBUG = LOGGER.isDebugEnabled();
+
+    // Static Environment variables
+
+    private static final boolean IS_CPU_AFFINITY_DEFINED =
+        System.getProperty(COMPSsConstants.WORKER_CPU_AFFINITY) != null
+            && !System.getProperty(COMPSsConstants.WORKER_CPU_AFFINITY).isEmpty();
+
+    private static final boolean IS_GPU_AFFINITY_DEFINED =
+        System.getProperty(COMPSsConstants.WORKER_GPU_AFFINITY) != null
+            && !System.getProperty(COMPSsConstants.WORKER_GPU_AFFINITY).isEmpty();
+
+    private static final boolean IS_FPGA_AFFINITY_DEFINED =
+        System.getProperty(COMPSsConstants.WORKER_FPGA_AFFINITY) != null
+            && !System.getProperty(COMPSsConstants.WORKER_FPGA_AFFINITY).isEmpty();
+
+    // Deployment ID
+    private static final String DEPLOYMENT_ID = System.getProperty(COMPSsConstants.DEPLOYMENT_ID);
+
+    // Scripts configuration
+
+    private static final String CLEAN_SCRIPT_PATH = "Runtime" + File.separator + "scripts" + File.separator + "system"
+        + File.separator + "adaptors" + File.separator + "nio" + File.separator;
+    private static final String CLEAN_SCRIPT_NAME = "persistent_worker_clean.sh";
+    // Connection related parameters
+    private static final long START_WORKER_INITIAL_WAIT = 100;
+    private static final long WAIT_TIME_UNIT = 500;
+    private static final long MAX_WAIT_FOR_SSH = 160_000;
+    private static final long MAX_WAIT_FOR_INIT = 20_000;
+    private static final String ERROR_SHUTTING_DOWN_RETRY = "ERROR: Cannot shutdown failed worker PID process";
+
+    // Starting workers
+    private static final Map<String, WorkerStarter> ADDRESS_TO_WORKER_STARTER = new TreeMap<>();
+
+    // Instance attributes
+    private boolean workerIsReady = false;
+    private boolean toStop = false;
+
 
     /**
      * Instantiates a new WorkerStarter for a given Worker.
@@ -65,7 +107,7 @@ public class WorkerStarter extends Starter {
 
         // Try to launch the worker until we receive the PID or we timeout
         int pid = -1;
-        String[] command = getStartCommand(port, masterName);
+        String[] command = generateStartCommand(port, masterName, "NoTracingHostID");
         do {
             ProcessOut po = executeCommand(user, name, command);
             if (po == null) {
@@ -199,232 +241,28 @@ public class WorkerStarter extends Starter {
         }
     }
 
+    // Arguments needed for persistent_worker.sh
     @Override
-    protected String[] getStartCommand(int workerPort, String masterName) throws InitNodeException {
+    protected String[] generateStartCommand(int workerPort, String masterName, String hostId) throws InitNodeException {
         final String workingDir = this.nw.getWorkingDir();
         final String installDir = this.nw.getInstallDir();
         final String appDir = this.nw.getAppDir();
-
-        // Merge command classpath and worker defined classpath
-        String workerClasspath = "";
         String classpathFromFile = this.nw.getClasspath();
-        if (!classpathFromFile.isEmpty()) {
-            if (!CLASSPATH_FROM_ENVIRONMENT.isEmpty()) {
-                workerClasspath = classpathFromFile + LIB_SEPARATOR + CLASSPATH_FROM_ENVIRONMENT;
-            } else {
-                workerClasspath = classpathFromFile;
-            }
-        } else {
-            workerClasspath = CLASSPATH_FROM_ENVIRONMENT;
-        }
-
-        // Merge command pythonpath and worker defined pythonpath
-        String workerPythonpath = "";
         String pythonpathFromFile = this.nw.getPythonpath();
-        if (!pythonpathFromFile.isEmpty()) {
-            if (!PYTHONPATH_FROM_ENVIRONMENT.isEmpty()) {
-                workerPythonpath = pythonpathFromFile + LIB_SEPARATOR + PYTHONPATH_FROM_ENVIRONMENT;
-            } else {
-                workerPythonpath = pythonpathFromFile;
-            }
-        } else {
-            workerPythonpath = PYTHONPATH_FROM_ENVIRONMENT;
-        }
-
-        // Merge command libpath and machine defined libpath
-        String workerLibPath = "";
         String libPathFromFile = this.nw.getLibPath();
-        if (!libPathFromFile.isEmpty()) {
-            if (!LIBPATH_FROM_ENVIRONMENT.isEmpty()) {
-                workerLibPath = libPathFromFile + LIB_SEPARATOR + LIBPATH_FROM_ENVIRONMENT;
-            } else {
-                workerLibPath = libPathFromFile;
-            }
-        } else {
-            workerLibPath = LIBPATH_FROM_ENVIRONMENT;
+        String workerName = this.nw.getName();
+        int totalCPU = this.nw.getTotalComputingUnits();
+        int totalGPU = this.nw.getTotalGPUs();
+        int totalFPGA = this.nw.getTotalFPGAs();
+        int limitOfTasks = this.nw.getLimitOfTasks();
+
+        try {
+            return new NIOStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
+                classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
+                hostId).getStartCommand();
+        } catch (Exception e) {
+            throw new InitNodeException(e);
         }
-
-        // Get JVM Flags
-        String workerJVMflags = System.getProperty(COMPSsConstants.WORKER_JVM_OPTS);
-        String[] jvmFlags = new String[0];
-        if (workerJVMflags != null && !workerJVMflags.isEmpty()) {
-            jvmFlags = workerJVMflags.split(",");
-        }
-
-        // Get FPGA reprogram args
-        String workerFPGAargs = System.getProperty(COMPSsConstants.WORKER_FPGA_REPROGRAM);
-        String[] fpgaArgs = new String[0];
-        if (workerFPGAargs != null && !workerFPGAargs.isEmpty()) {
-            fpgaArgs = workerFPGAargs.split(" ");
-        }
-
-        // Configure worker debug level
-        final String workerDebug = Boolean.toString(LogManager.getLogger(Loggers.WORKER).isDebugEnabled());
-
-        // Configure storage
-        String storageConf = System.getProperty(COMPSsConstants.STORAGE_CONF);
-        if (storageConf == null || storageConf.equals("") || storageConf.equals("null")) {
-            storageConf = "null";
-        }
-        String executionType = System.getProperty(COMPSsConstants.TASK_EXECUTION);
-        if (executionType == null || executionType.equals("") || executionType.equals("null")) {
-            executionType = COMPSsConstants.TaskExecution.COMPSS.toString();
-        }
-
-        // configure persistent_worker_c execution
-        String workerPersistentC = System.getProperty(COMPSsConstants.WORKER_PERSISTENT_C);
-        if (workerPersistentC == null || workerPersistentC.isEmpty() || workerPersistentC.equals("null")) {
-            workerPersistentC = COMPSsConstants.DEFAULT_PERSISTENT_C;
-        }
-
-        // Configure python interpreter
-        String pythonInterpreter = System.getProperty(COMPSsConstants.PYTHON_INTERPRETER);
-        if (pythonInterpreter == null || pythonInterpreter.isEmpty() || pythonInterpreter.equals("null")) {
-            pythonInterpreter = COMPSsConstants.DEFAULT_PYTHON_INTERPRETER;
-        }
-
-        // Configure python version
-        String pythonVersion = System.getProperty(COMPSsConstants.PYTHON_VERSION);
-        if (pythonVersion == null || pythonVersion.isEmpty() || pythonVersion.equals("null")) {
-            pythonVersion = COMPSsConstants.DEFAULT_PYTHON_VERSION;
-        }
-
-        // Configure python virtual environment
-        String pythonVirtualEnvironment = System.getProperty(COMPSsConstants.PYTHON_VIRTUAL_ENVIRONMENT);
-        if (pythonVirtualEnvironment == null || pythonVirtualEnvironment.isEmpty()
-            || pythonVirtualEnvironment.equals("null")) {
-            pythonVirtualEnvironment = COMPSsConstants.DEFAULT_PYTHON_VIRTUAL_ENVIRONMENT;
-        }
-        String pythonPropagateVirtualEnvironment =
-            System.getProperty(COMPSsConstants.PYTHON_PROPAGATE_VIRTUAL_ENVIRONMENT);
-        if (pythonPropagateVirtualEnvironment == null || pythonPropagateVirtualEnvironment.isEmpty()
-            || pythonPropagateVirtualEnvironment.equals("null")) {
-            pythonPropagateVirtualEnvironment = COMPSsConstants.DEFAULT_PYTHON_PROPAGATE_VIRTUAL_ENVIRONMENT;
-        }
-
-        String pythonMpiWorker = System.getProperty(COMPSsConstants.PYTHON_MPI_WORKER);
-        if (pythonMpiWorker == null || pythonMpiWorker.isEmpty() || pythonMpiWorker.equals("null")) {
-            pythonMpiWorker = COMPSsConstants.DEFAULT_PYTHON_MPI_WORKER;
-        }
-
-        /*
-         * ************************************************************************************************************
-         * BUILD COMMAND
-         * ************************************************************************************************************
-         */
-        String[] cmd = new String[NIOAdaptor.NUM_PARAMS_PER_WORKER_SH + NIOAdaptor.NUM_PARAMS_NIO_WORKER
-            + jvmFlags.length + 1 + fpgaArgs.length];
-
-        /* SCRIPT ************************************************ */
-        cmd[0] = installDir + (installDir.endsWith(File.separator) ? "" : File.separator) + STARTER_SCRIPT_PATH
-            + STARTER_SCRIPT_NAME; // 0 script directory
-
-        /* Values ONLY for persistent_worker.sh ****************** */
-        cmd[1] = workerLibPath.isEmpty() ? "null" : workerLibPath; // 1
-
-        if (WORKER_APPDIR_FROM_ENVIRONMENT.isEmpty() && appDir.isEmpty()) {
-            LOGGER.warn("No path passed via appdir option neither xml AppDir field");
-            cmd[2] = "null"; // 2
-        } else if (!appDir.isEmpty()) {
-            if (!WORKER_APPDIR_FROM_ENVIRONMENT.isEmpty()) {
-                LOGGER.warn("Path passed via appdir option and xml AppDir field."
-                    + "The path provided by the xml will be used");
-            }
-            cmd[2] = appDir;
-        } else if (!WORKER_APPDIR_FROM_ENVIRONMENT.isEmpty()) {
-            cmd[2] = WORKER_APPDIR_FROM_ENVIRONMENT;
-        }
-
-        cmd[3] = workerClasspath.isEmpty() ? "null" : workerClasspath; // 3
-
-        cmd[4] = Comm.getStreamingBackend().name();
-
-        cmd[5] = String.valueOf(jvmFlags.length);
-        for (int i = 0; i < jvmFlags.length; ++i) {
-            cmd[NIOAdaptor.NUM_PARAMS_PER_WORKER_SH + i] = jvmFlags[i];
-        }
-
-        int nextPosition = NIOAdaptor.NUM_PARAMS_PER_WORKER_SH + jvmFlags.length;
-        cmd[nextPosition++] = String.valueOf(fpgaArgs.length);
-        for (String fpgaArg : fpgaArgs) {
-            cmd[nextPosition++] = fpgaArg;
-        }
-
-        /* Values for NIOWorker ********************************** */
-        cmd[nextPosition++] = workerDebug; // 0
-
-        // Internal parameters
-        cmd[nextPosition++] = String.valueOf(NIOAdaptor.MAX_SEND_WORKER); // 1
-        cmd[nextPosition++] = String.valueOf(NIOAdaptor.MAX_RECEIVE_WORKER); // 2
-        cmd[nextPosition++] = this.nw.getName(); // 3
-        cmd[nextPosition++] = String.valueOf(workerPort); // 4
-        cmd[nextPosition++] = masterName; // 5
-        cmd[nextPosition++] = String.valueOf(NIOAdaptor.MASTER_PORT); // 6
-        cmd[nextPosition++] = String.valueOf(Comm.getStreamingPort());
-
-        // Worker parameters
-        cmd[nextPosition++] = String.valueOf(this.nw.getTotalComputingUnits()); // 7
-        cmd[nextPosition++] = String.valueOf(this.nw.getTotalGPUs()); // 8
-        cmd[nextPosition++] = String.valueOf(this.nw.getTotalFPGAs()); // 9
-        // get cpu_affinity from properties
-
-        String cpuAffinity = nw.getConfiguration().getProperty("cpu_affinity"); // 10
-        if (cpuAffinity != null) {
-            cmd[nextPosition++] = String.valueOf(CPU_AFFINITY);
-        } else {
-            cmd[nextPosition++] = String.valueOf(CPU_AFFINITY);
-        }
-        cmd[nextPosition++] = String.valueOf(GPU_AFFINITY); // 11
-        cmd[nextPosition++] = String.valueOf(FPGA_AFFINITY); // 12
-        cmd[nextPosition++] = String.valueOf(this.nw.getLimitOfTasks()); // 13
-
-        // Application parameters
-        cmd[nextPosition++] = DEPLOYMENT_ID; // 14
-        cmd[nextPosition++] = System.getProperty(COMPSsConstants.LANG); // 15
-        cmd[nextPosition++] = workingDir; // 16
-        cmd[nextPosition++] = this.nw.getInstallDir(); // 17
-
-        cmd[nextPosition++] = cmd[2]; // 18
-        cmd[nextPosition++] = workerLibPath.isEmpty() ? "null" : workerLibPath; // 19
-        cmd[nextPosition++] = workerClasspath.isEmpty() ? "null" : workerClasspath; // 20
-        cmd[nextPosition++] = workerPythonpath.isEmpty() ? "null" : workerPythonpath; // 21
-
-        // Tracing parameters
-        cmd[nextPosition++] = String.valueOf(NIOTracer.getLevel()); // 22
-        cmd[nextPosition++] = NIOTracer.getExtraeFile(); // 23
-        if (Tracer.extraeEnabled()) {
-            // NumSlots per host is ignored --> 0
-            Integer hostId = NIOTracer.registerHost(this.nw.getName(), 0);
-            cmd[nextPosition++] = String.valueOf(hostId.toString()); // 24
-        } else {
-            cmd[nextPosition++] = "NoTracinghostID"; // 24
-        }
-
-        // Storage parameters
-        cmd[nextPosition++] = storageConf; // 25
-        cmd[nextPosition++] = executionType; // 26
-
-        // persistent_c parameter
-        cmd[nextPosition++] = workerPersistentC; // 27
-
-        // Python interpreter parameter
-        cmd[nextPosition++] = pythonInterpreter; // 28
-        // Python interpreter version
-        cmd[nextPosition++] = pythonVersion; // 29
-        // Python virtual environment parameter
-        cmd[nextPosition++] = pythonVirtualEnvironment; // 30
-        // Python propagate virtual environment parameter
-        cmd[nextPosition++] = pythonPropagateVirtualEnvironment; // 31
-        // Python use MPI worker parameter
-        cmd[nextPosition++] = pythonMpiWorker; // 32
-
-        if (cmd.length != nextPosition) {
-            throw new InitNodeException(
-                "ERROR: Incorrect number of parameters. Expected: " + cmd.length + ". Got: " + nextPosition);
-        }
-
-        return cmd;
-
     }
 
     @Override

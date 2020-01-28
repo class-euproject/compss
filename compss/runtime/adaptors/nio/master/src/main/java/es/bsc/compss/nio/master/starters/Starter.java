@@ -159,7 +159,8 @@ public abstract class Starter {
     }
 
     // Arguments needed for persistent_worker.sh
-    protected abstract String[] getStartCommand(int workerPort, String masterName) throws InitNodeException;
+    protected abstract String[] generateStartCommand(int workerPort, String masterName, String hostId)
+        throws InitNodeException;
 
     protected ProcessOut runRemoteCommand(List<String> cmd) {
         try {

@@ -46,7 +46,7 @@ public abstract class ContainerStarter extends Starter {
     }
 
     @Override
-    protected String[] getStartCommand(int workerPort, String masterName) throws InitNodeException {
+    protected String[] generateStartCommand(int workerPort, String masterName, String hostID) throws InitNodeException {
         String workerLibPath = "";
         String libPathFromFile = nw.getLibPath();
         if (!libPathFromFile.isEmpty()) {

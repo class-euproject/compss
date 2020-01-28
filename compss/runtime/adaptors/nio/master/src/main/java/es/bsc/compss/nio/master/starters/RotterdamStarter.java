@@ -62,8 +62,9 @@ public class RotterdamStarter extends ContainerStarter {
 
         ContainerConfig containerConfig = new ContainerConfig(name, this.imageName);
         containerConfig.setCommand(Arrays.asList("/bin/sh", "-c"));
-        containerConfig.setArgs(Arrays.asList("mkdir -p " + this.nw.getWorkingDir() + "/jobs && " + "mkdir -p "
-            + this.nw.getWorkingDir() + "/log && " + String.join(" ", getStartCommand(43001, master))));
+        containerConfig.setArgs(
+            Arrays.asList("mkdir -p " + this.nw.getWorkingDir() + "/jobs && " + "mkdir -p " + this.nw.getWorkingDir()
+                + "/log && " + String.join(" ", generateStartCommand(43001, master, "NoTracingHostID"))));
 
         // IntStream.range(minPort, maxPort).forEach(n -> containerConfig.addPort(n, n, "tcp"));
         containerConfig.addPort(43001, minPort, "tcp");

@@ -48,7 +48,7 @@ public class LXCStarter extends ContainerStarter {
 
     @Override
     protected NIONode distribute(String master, Integer minPort, Integer maxPort) throws InitNodeException {
-        final String[] command = getStartCommand(43001, master);
+        final String[] command = generateStartCommand(43001, master, "NoTracingHostID");
         this.containerId = "compss-" + DEPLOYMENT_ID.split("-")[0];
         List<String> cmd = new ArrayList<>();
         cmd.add(LXC_SCRIPT_PATH);
