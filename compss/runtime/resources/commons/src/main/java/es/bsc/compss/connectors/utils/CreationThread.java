@@ -16,11 +16,13 @@
  */
 package es.bsc.compss.connectors.utils;
 
+import es.bsc.compss.comm.Comm;
 import es.bsc.compss.components.ResourceUser;
 import es.bsc.compss.connectors.AbstractConnector;
 import es.bsc.compss.connectors.ConnectorException;
 import es.bsc.compss.connectors.VM;
 import es.bsc.compss.log.Loggers;
+import es.bsc.compss.types.COMPSsWorker;
 import es.bsc.compss.types.CloudProvider;
 import es.bsc.compss.types.ResourceCreationRequest;
 import es.bsc.compss.types.resources.CloudMethodWorker;
@@ -30,6 +32,8 @@ import es.bsc.compss.types.resources.description.CloudImageDescription;
 import es.bsc.compss.types.resources.description.CloudMethodResourceDescription;
 import es.bsc.compss.util.ResourceManager;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -105,72 +109,81 @@ public class CreationThread extends Thread {
 
     @Override
     public void run() {
+        System.out.println("CreationThread::run");
         boolean check = operations.getCheck();
         RUNTIME_LOGGER.debug("Operations check = " + check);
 
         CloudMethodResourceDescription requested = rcr.getRequested();
-        VM granted;
+        List<VM> granted;
 
         if (this.reused == null) { // If the resources does not exist --> Create
             this.setName("Creation Thread " + this.name);
             try {
-                granted = createResourceOnProvider(requested);
+                int replicas = 1;
+                granted = createResourceOnProvider(requested, replicas);
             } catch (Exception e) {
                 RUNTIME_LOGGER.error(ERROR_ASKING_NEW_RESOURCE + this.provider, e);
                 notifyFailure();
                 return;
             }
-            if (DEBUG) {
-                RUNTIME_LOGGER
-                    .debug("Resource " + granted.getName() + " with id  " + granted.getEnvId() + " has been created ");
-            }
-            RESOURCE_LOGGER.info("RESOURCE_GRANTED = [\n\tNAME = " + granted.getName() + "\n\tSTATUS = ID "
-                + granted.getEnvId() + " CREATED\n]");
+            granted.forEach(g -> {
+                if (DEBUG) {
+                    RUNTIME_LOGGER
+                        .debug("Resource " + g.getName() + " with id  " + g.getEnvId() + " has been created ");
+                }
+                RESOURCE_LOGGER.info("RESOURCE_GRANTED = [\n\tNAME = " + g.getName() + "\n\tSTATUS = ID " + g.getEnvId()
+                    + " CREATED\n]");
+            });
         } else {
-            granted = this.reused;
+            granted = Collections.singletonList(this.reused);
             if (DEBUG) {
                 RUNTIME_LOGGER
-                    .debug("Resource " + granted.getName() + " with id  " + granted.getEnvId() + " has been reused ");
+                    .debug("Resource " + reused.getName() + " with id  " + reused.getEnvId() + " has been reused ");
             }
             RESOURCE_LOGGER.info("RESOURCE_GRANTED = [\n\tNAME = " + this.reused.getName() + "\n\tSTATUS = ID "
-                + granted.getEnvId() + " REUSED\n]");
+                + reused.getEnvId() + " REUSED\n]");
         }
-        String grantedName = granted.getName();
-        this.setName("Creation Thread " + grantedName);
-        CloudMethodWorker r = (CloudMethodWorker) ResourceManager.getDynamicResource(granted.getName());
-        if (r == null) {
-            // Resources are provided in a new VM
-            if (this.reused == null) {
-                // And are new --> Initiate VM
-                try {
-                    if (DEBUG) {
-                        RUNTIME_LOGGER.debug(" Preparing new worker resource " + granted.getName() + ".");
+        final CloudMethodWorker r = (CloudMethodWorker) ResourceManager.getDynamicResource(granted.get(0).getName());
+        final AtomicInteger counter = new AtomicInteger();
+        granted.forEach(g -> {
+            String grantedName = g.getName() + "-" + counter.getAndIncrement();
+            this.setName("Creation Thread " + grantedName);
+            if (r == null) {
+                CloudMethodWorker cmw;
+                // Resources are provided in a new VM
+                if (this.reused == null) {
+                    // And are new --> Initiate VM
+                    try {
+                        if (DEBUG) {
+                            RUNTIME_LOGGER.debug(" Preparing new worker resource " + g.getName() + ".");
+                        }
+                        cmw = prepareNewResource(g);
+                        operations.vmReady(g);
+                    } catch (Exception e) {
+                        RUNTIME_LOGGER.error(ERROR_PREPARING_VM, e);
+                        powerOff(g);
+                        notifyFailure();
+                        return;
                     }
-                    r = prepareNewResource(granted);
-                    operations.vmReady(granted);
-                } catch (Exception e) {
-                    RUNTIME_LOGGER.error(ERROR_PREPARING_VM, e);
-                    powerOff(granted);
-                    notifyFailure();
-                    return;
+                } else {
+                    int limitOfTasks = g.getDescription().getTotalCPUComputingUnits();
+                    int limitGPUTasks = g.getDescription().getTotalGPUComputingUnits();
+                    int limitFPGATasks = g.getDescription().getTotalFPGAComputingUnits();
+                    int limitOTHERTasks = g.getDescription().getTotalOTHERComputingUnits();
+                    cmw = new CloudMethodWorker(grantedName, this.provider, g.getDescription(), null, limitOfTasks,
+                        limitGPUTasks, limitFPGATasks, limitOTHERTasks, rcr.getRequested().getImage().getSharedDisks());
+                    if (DEBUG) {
+                        RUNTIME_LOGGER.debug("Worker for new resource " + grantedName + " set.");
+                    }
                 }
+                g.setWorker(cmw);
+                // ResourceManager.addCloudWorker(this.rcr, cmw, g.getDescription());
+                ResourceManager.addDynamicWorker(cmw, g.getDescription());
             } else {
-                int limitOfTasks = granted.getDescription().getTotalCPUComputingUnits();
-                int limitGPUTasks = granted.getDescription().getTotalGPUComputingUnits();
-                int limitFPGATasks = granted.getDescription().getTotalFPGAComputingUnits();
-                int limitOTHERTasks = granted.getDescription().getTotalOTHERComputingUnits();
-                r = new CloudMethodWorker(grantedName, this.provider, granted.getDescription(), null, limitOfTasks,
-                    limitGPUTasks, limitFPGATasks, limitOTHERTasks, rcr.getRequested().getImage().getSharedDisks());
-                if (DEBUG) {
-                    RUNTIME_LOGGER.debug("Worker for new resource " + grantedName + " set.");
-                }
+                // Resources are provided in an existing VM
+                ResourceManager.increasedCloudWorker(this.rcr, r, g.getDescription());
             }
-            granted.setWorker(r);
-            ResourceManager.addCloudWorker(this.rcr, r, granted.getDescription());
-        } else {
-            // Resources are provided in an existing VM
-            ResourceManager.increasedCloudWorker(this.rcr, r, granted.getDescription());
-        }
+        });
 
         COUNT.decrementAndGet();
     }
@@ -193,13 +206,16 @@ public class CreationThread extends Thread {
         return CreationThread.listener;
     }
 
-    private VM createResourceOnProvider(CloudMethodResourceDescription requested) throws ConnectorException {
-        VM granted;
+    private List<VM> createResourceOnProvider(CloudMethodResourceDescription requested, int replicas)
+        throws ConnectorException {
+        List<VM> granted;
         Object envID;
         // ASK FOR THE VIRTUAL RESOURCE
+        System.out.println("CreationThread::createResourceOnProvider");
         try {
             // Turn on the VM and expects the new mr description
-            envID = this.operations.poweron(this.name, requested);
+            System.out.println("Calling poweron");
+            envID = this.operations.poweron(this.name, requested, replicas);
         } catch (ConnectorException e) {
             RUNTIME_LOGGER.error(ERROR_ASKING_NEW_RESOURCE + provider + "\n", e);
             RESOURCE_LOGGER.error("ERROR_MSG = [\n\t" + ERROR_ASKING_NEW_RESOURCE + provider + "\n]", e);
@@ -215,6 +231,7 @@ public class CreationThread extends Thread {
         // WAITING FOR THE RESOURCES TO BE RUNNING
         try {
             // Wait until the VM has been created
+            System.out.println("Calling WaitCreation");
             granted = this.operations.waitCreation(envID, requested);
         } catch (ConnectorException e) {
             RUNTIME_LOGGER.error(ERROR_WAITING_VM + this.provider + "\n", e);
@@ -228,7 +245,7 @@ public class CreationThread extends Thread {
             throw new ConnectorException("Error waiting for the vm");
         }
 
-        if (granted != null) {
+        if (!granted.isEmpty()) {
             RESOURCE_LOGGER.debug("CONNECTOR_REQUEST = [");
             RESOURCE_LOGGER.debug("\tPROC_CPU_CU = " + requested.getTotalCPUComputingUnits());
             RESOURCE_LOGGER.debug("\tPROC_GPU_CU = " + requested.getTotalGPUComputingUnits());
@@ -237,15 +254,17 @@ public class CreationThread extends Thread {
             RESOURCE_LOGGER.debug("\tOS = " + requested.getOperatingSystemType());
             RESOURCE_LOGGER.debug("\tMEM = " + requested.getMemorySize());
             RESOURCE_LOGGER.debug("]");
-            CloudMethodResourceDescription desc = granted.getDescription();
-            RESOURCE_LOGGER.debug("CONNECTOR_GRANTED = [");
-            RESOURCE_LOGGER.debug("\tPROC_CPU_CU = " + desc.getTotalCPUComputingUnits());
-            RESOURCE_LOGGER.debug("\tPROC_GPU_CU = " + desc.getTotalGPUComputingUnits());
-            RESOURCE_LOGGER.debug("\tPROC_FPGA_CU = " + desc.getTotalFPGAComputingUnits());
-            RESOURCE_LOGGER.debug("\tPROC_OTHER_CU = " + desc.getTotalOTHERComputingUnits());
-            RESOURCE_LOGGER.debug("\tOS = " + desc.getOperatingSystemType());
-            RESOURCE_LOGGER.debug("\tMEM = " + desc.getMemorySize());
-            RESOURCE_LOGGER.debug("]");
+            granted.forEach(vm -> {
+                CloudMethodResourceDescription desc = vm.getDescription();
+                RESOURCE_LOGGER.debug("CONNECTOR_GRANTED = [");
+                RESOURCE_LOGGER.debug("\tPROC_CPU_CU = " + desc.getTotalCPUComputingUnits());
+                RESOURCE_LOGGER.debug("\tPROC_GPU_CU = " + desc.getTotalGPUComputingUnits());
+                RESOURCE_LOGGER.debug("\tPROC_FPGA_CU = " + desc.getTotalFPGAComputingUnits());
+                RESOURCE_LOGGER.debug("\tPROC_OTHER_CU = " + desc.getTotalOTHERComputingUnits());
+                RESOURCE_LOGGER.debug("\tOS = " + desc.getOperatingSystemType());
+                RESOURCE_LOGGER.debug("\tMEM = " + desc.getMemorySize());
+                RESOURCE_LOGGER.debug("]");
+            });
         } else {
             throw new ConnectorException(ERROR_GRANTED_NULL);
         }
@@ -274,25 +293,14 @@ public class CreationThread extends Thread {
             RESOURCE_LOGGER.error("ERROR_MSG = [\n\t" + ERROR_PREPARING_VM + granted.getName() + "]", e);
             throw e;
         }
+
         MethodConfiguration mc = cid.getConfig();
-        int limitOfTasks = mc.getLimitOfTasks();
-        int computingUnits = granted.getTotalCPUComputingUnits();
-        if (limitOfTasks < 0 && computingUnits < 0) {
-            mc.setLimitOfTasks(0);
-            mc.setTotalComputingUnits(0);
-        } else {
-            mc.setLimitOfTasks(Math.max(limitOfTasks, computingUnits));
-            mc.setTotalComputingUnits(Math.max(limitOfTasks, computingUnits));
-        }
-        mc.setHost(granted.getName());
-        mc.setLimitOfGPUTasks(granted.getTotalGPUComputingUnits());
-        mc.setTotalGPUComputingUnits(granted.getTotalGPUComputingUnits());
-        mc.setLimitOfFPGATasks(granted.getTotalFPGAComputingUnits());
-        mc.setTotalFPGAComputingUnits(granted.getTotalFPGAComputingUnits());
-        mc.setLimitOfOTHERsTasks(granted.getTotalOTHERComputingUnits());
-        mc.setTotalOTHERComputingUnits(granted.getTotalOTHERComputingUnits());
-        CloudMethodWorker worker =
-            new CloudMethodWorker(granted.getName(), this.provider, granted, mc, cid.getSharedDisks());
+        int limitOfTasks = Math.max(mc.getLimitOfTasks(), granted.getTotalCPUComputingUnits());
+        COMPSsWorker compssWorker =
+            Comm.getAdaptor(mc.getAdaptorName()).initWorker(mc, vm.getName(), vm.getDescription().getPort());
+        CloudMethodWorker worker = new CloudMethodWorker(granted.getName(), this.provider, granted, compssWorker,
+            limitOfTasks, granted.getTotalGPUComputingUnits(), granted.getTotalFPGAComputingUnits(),
+            granted.getTotalOTHERComputingUnits(), cid.getSharedDisks());
 
         try {
             worker.announceCreation();

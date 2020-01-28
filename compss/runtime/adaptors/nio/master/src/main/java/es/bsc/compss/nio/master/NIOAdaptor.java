@@ -305,6 +305,17 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
     }
 
     @Override
+    public COMPSsWorker initWorker(Configuration config, String name, int port) {
+        NIOConfiguration nioCfg = (NIOConfiguration) config;
+        LOGGER.debug("Init NIO Worker Node named " + nioCfg.getHost());
+
+        NIONode n = new NIONode(name, port);
+        NIOWorkerNode worker = new NIOWorkerNode(nioCfg, this, n);
+        NODES.add(worker);
+        return worker;
+    }
+
+    @Override
     public boolean isPersistentCEnabled() {
         return this.persistentC;
     }
@@ -854,10 +865,15 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
     @Override
     public StarterCommand getStarterCommand(String workerName, int workerPort, String masterName, String workingDir,
         String installDir, String appDir, String classpathFromFile, String pythonpathFromFile, String libPathFromFile,
-        int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId) {
-
-        return new NIOStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
-            classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
-            hostId);
+        int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId, boolean container) {
+        if (container) {
+            return new NIOContainerStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
+                classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
+                hostId);
+        } else {
+            return new NIOStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
+                classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
+                hostId);
+        }
     }
 }

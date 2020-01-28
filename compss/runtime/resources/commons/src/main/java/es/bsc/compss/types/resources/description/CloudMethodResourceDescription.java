@@ -33,6 +33,7 @@ public class CloudMethodResourceDescription extends MethodResourceDescription {
 
     // Resource Description
     private String name = "";
+    private Integer port = null;
     private final Map<CloudInstanceTypeDescription, int[]> typeComposition;
     private CloudImageDescription image = null;
 
@@ -114,6 +115,24 @@ public class CloudMethodResourceDescription extends MethodResourceDescription {
      */
     public void setName(String name) {
         this.name = name;
+    }
+
+    /**
+     * Gets the port of the worker.
+     * 
+     * @return Port (nullable)
+     */
+    public Integer getPort() {
+        return this.port;
+    }
+
+    /**
+     * Sets the port of the worker.
+     * 
+     * @param port The port
+     */
+    public void setPort(Integer port) {
+        this.port = port;
     }
 
     /**

@@ -26,13 +26,16 @@ import es.bsc.compss.types.resources.description.CloudMethodResourceDescription;
 import es.bsc.compss.util.Classpath;
 
 import es.bsc.conn.Connector;
+import es.bsc.conn.types.StarterCommand;
 import es.bsc.conn.types.VirtualResource;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.lang.reflect.Constructor;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -124,21 +127,23 @@ public class DefaultNoSSHConnector extends AbstractConnector {
     }
 
     @Override
-    public Object create(String name, CloudMethodResourceDescription cmrd) throws ConnectorException {
+    public Object create(String name, CloudMethodResourceDescription cmrd, int replicas) throws ConnectorException {
         LOGGER.debug("Create connection " + name);
+        System.out.println("DefaultNoSSHConnector::create");
+        StarterCommand starterCMD = getStarterCommand(name, cmrd, true);
         return this.connector.create(name, Converter.getHardwareDescription(cmrd),
-            Converter.getSoftwareDescription(cmrd), cmrd.getImage().getProperties(),
-            cmrd.getImage().getConfig().getAdaptorName());
+            Converter.getSoftwareDescription(cmrd), cmrd.getImage().getProperties(), starterCMD, replicas);
     }
 
     @Override
-    public CloudMethodResourceDescription waitUntilCreation(Object id, CloudMethodResourceDescription requested)
+    public List<CloudMethodResourceDescription> waitUntilCreation(Object id, CloudMethodResourceDescription requested)
         throws ConnectorException {
+        System.out.println("DefaultNoSSHConnector::waitUntilCreation");
         LOGGER.debug("Waiting for " + id);
-        VirtualResource vr = this.connector.waitUntilCreation(id);
-        CloudMethodResourceDescription cmrd = Converter.toCloudMethodResourceDescription(vr, requested);
-        LOGGER.debug("Return cloud method resource description " + cmrd.toString());
-        return cmrd;
+        return this.connector.waitUntilCreation(id).stream()
+            .map(vr -> Converter.toCloudMethodResourceDescription(vr, requested))
+            .peek(cmrd -> LOGGER.debug("Return cloud method resource description " + cmrd.toString()))
+            .collect(Collectors.toList());
     }
 
     @Override

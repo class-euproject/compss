@@ -295,6 +295,7 @@ public class TaskDispatcher implements Runnable, ResourceUser, ActionOrchestrato
 
     @Override
     public <T extends WorkerResourceDescription> void updatedResource(Worker<T> r, ResourceUpdate<T> modification) {
+        System.out.println("UPDATEDRESOURCE REACHED");
         WorkerUpdateRequest<T> request = new WorkerUpdateRequest<>(r, modification);
         addPrioritaryRequest(request);
     }

@@ -62,6 +62,11 @@ public class Adaptor implements CommAdaptor {
     }
 
     @Override
+    public COMPSsWorker initWorker(Configuration config, String name, int port) {
+        return this.initWorker(config);
+    }
+
+    @Override
     public void stop() {
         // You cannot stop a remote agent.
     }
@@ -85,7 +90,7 @@ public class Adaptor implements CommAdaptor {
     @Override
     public StarterCommand getStarterCommand(String workerName, int workerPort, String masterName, String workingDir,
         String installDir, String appDir, String classpathFromFile, String pythonpathFromFile, String libPathFromFile,
-        int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId) {
+        int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId, boolean container) {
         return null;
     }
 

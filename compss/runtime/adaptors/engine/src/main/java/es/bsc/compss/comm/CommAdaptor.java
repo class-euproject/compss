@@ -57,6 +57,16 @@ public interface CommAdaptor {
     public COMPSsWorker initWorker(Configuration config);
 
     /**
+     * Initializes a worker through an adaptor.
+     *
+     * @param config Adaptor configuration.
+     * @param name Name/IP of the worker
+     * @param port Port from which the worker listens
+     * @return A COMPSsWorker object representing the initialized worker.
+     */
+    public COMPSsWorker initWorker(Configuration config, String name, int port);
+
+    /**
      * Stops the Communication Adaptor.
      */
     public void stop();
@@ -82,6 +92,6 @@ public interface CommAdaptor {
 
     public StarterCommand getStarterCommand(String workerName, int workerPort, String masterName, String workingDir,
         String installDir, String appDir, String classpathFromFile, String pythonpathFromFile, String libPathFromFile,
-        int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId);
+        int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId, boolean container);
 
 }

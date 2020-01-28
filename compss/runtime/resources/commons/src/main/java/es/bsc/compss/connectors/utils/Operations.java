@@ -22,6 +22,8 @@ import es.bsc.compss.types.resources.CloudMethodWorker;
 import es.bsc.compss.types.resources.description.CloudImageDescription;
 import es.bsc.compss.types.resources.description.CloudMethodResourceDescription;
 
+import java.util.List;
+
 
 public interface Operations {
 
@@ -36,7 +38,7 @@ public interface Operations {
      * @return The VM description.
      * @throws ConnectorException When the connector raises an exception.
      */
-    public Object poweron(String name, CloudMethodResourceDescription rd) throws ConnectorException;
+    public Object poweron(String name, CloudMethodResourceDescription rd, int replicas) throws ConnectorException;
 
     /**
      * Destroy a machine.
@@ -54,7 +56,7 @@ public interface Operations {
      * @return The VM description of the granted machine by the connector.
      * @throws ConnectorException When the connector raises an exception.
      */
-    public VM waitCreation(Object envId, CloudMethodResourceDescription request) throws ConnectorException;
+    public List<VM> waitCreation(Object envId, CloudMethodResourceDescription request) throws ConnectorException;
 
     /**
      * Allow access from master and between VM.

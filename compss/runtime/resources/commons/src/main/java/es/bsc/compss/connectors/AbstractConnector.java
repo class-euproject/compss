@@ -16,6 +16,8 @@
  */
 package es.bsc.compss.connectors;
 
+import es.bsc.compss.COMPSsConstants;
+import es.bsc.compss.comm.Comm;
 import es.bsc.compss.connectors.utils.CreationThread;
 import es.bsc.compss.connectors.utils.DeletionThread;
 import es.bsc.compss.connectors.utils.Operations;
@@ -24,15 +26,20 @@ import es.bsc.compss.types.CloudProvider;
 import es.bsc.compss.types.ResourceCreationRequest;
 import es.bsc.compss.types.resources.CloudMethodWorker;
 import es.bsc.compss.types.resources.ShutdownListener;
+import es.bsc.compss.types.resources.configuration.MethodConfiguration;
 import es.bsc.compss.types.resources.description.CloudMethodResourceDescription;
+
+import es.bsc.conn.types.StarterCommand;
 
 import java.util.ConcurrentModificationException;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
+import java.util.stream.Collectors;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -128,6 +135,7 @@ public abstract class AbstractConnector implements Connector, Operations, Cost {
      */
     @Override
     public boolean turnON(String name, ResourceCreationRequest rR) {
+        System.out.println("AbstractConnector::turnON");
         if (this.terminate) {
             return false;
         }
@@ -240,9 +248,10 @@ public abstract class AbstractConnector implements Connector, Operations, Cost {
     protected abstract void close();
 
     @Override
-    public Object poweron(String name, CloudMethodResourceDescription rd) throws ConnectorException {
+    public Object poweron(String name, CloudMethodResourceDescription rd, int replicas) throws ConnectorException {
         long requestTime = System.currentTimeMillis();
-        Object vmId = create(name, rd);
+        System.out.println("AbstractConnector::poweron");
+        Object vmId = create(name, rd, replicas);
         this.powerOnVMTimestamp.put(vmId, new Long(requestTime));
         return vmId;
     }
@@ -255,18 +264,22 @@ public abstract class AbstractConnector implements Connector, Operations, Cost {
      * @return the internal Provider Id of the resources
      * @throws ConnectorException there was a problem during the VM Creation
      */
-    public abstract Object create(String name, CloudMethodResourceDescription rd) throws ConnectorException;
+    public abstract Object create(String name, CloudMethodResourceDescription rd, int replicas)
+        throws ConnectorException;
 
     @Override
-    public VM waitCreation(Object envId, CloudMethodResourceDescription requested) throws ConnectorException {
-        CloudMethodResourceDescription granted = waitUntilCreation(envId, requested);
-        VM vm = new VM(envId, granted);
-        vm.setRequestTime(this.powerOnVMTimestamp.remove(envId));
-        LOGGER.info("[Abstract Connector] Virtual machine created: " + vm);
-        float oneHourCost = getMachineCostPerHour(granted);
-        this.currentCostPerHour += oneHourCost;
-        addMachine(vm);
-        return vm;
+    public List<VM> waitCreation(Object envId, CloudMethodResourceDescription requested) throws ConnectorException {
+        System.out.println("AbstractConnector:waitCreation");
+        List<CloudMethodResourceDescription> granted = waitUntilCreation(envId, requested);
+        Long removeTime = powerOnVMTimestamp.remove(envId);
+        List<VM> vms = granted.stream().map(g -> {
+            VM vm = new VM(envId, g);
+            vm.setRequestTime(removeTime);
+            LOGGER.info("[Abstract Connector] Virtual machine created: " + vm);
+            addMachine(vm);
+            return vm;
+        }).collect(Collectors.toList());
+        return vms;
     }
 
     /**
@@ -277,7 +290,7 @@ public abstract class AbstractConnector implements Connector, Operations, Cost {
      * @return description of the granted resources
      * @throws ConnectorException An error occurred during the resources wait.
      */
-    public abstract CloudMethodResourceDescription waitUntilCreation(Object endId,
+    public abstract List<CloudMethodResourceDescription> waitUntilCreation(Object endId,
         CloudMethodResourceDescription requested) throws ConnectorException;
 
     @Override
@@ -414,6 +427,27 @@ public abstract class AbstractConnector implements Connector, Operations, Cost {
         long dif = now - vmStart;
         long mod = dif % limit;
         return mod < limit - DELETE_SAFETY_INTERVAL; // my deadline is less than 2 min away
+    }
+
+    protected StarterCommand getStarterCommand(String name, CloudMethodResourceDescription cmrd, boolean container) {
+        MethodConfiguration cid = cmrd.getImage().getConfig();
+        String adaptorName = cid.getAdaptorName();
+        Integer workerPort = cid.getMinPort();
+        String masterName = System.getProperty(COMPSsConstants.MASTER_NAME);
+        String workingDir = cid.getSandboxWorkingDir();
+        String installDir = cid.getInstallDir();
+        String appDir = cid.getAppDir();
+        String classPathFromFile = cid.getClasspath();
+        String pythonpathFromFile = cid.getPythonpath();
+        String libPathFromFile = cid.getLibraryPath();
+        int totalCPU = cid.getTotalComputingUnits();
+        int totalGPU = cid.getTotalGPUComputingUnits();
+        int totalFPGA = cid.getTotalFPGAComputingUnits();
+        int limitOfTasks = cid.getLimitOfTasks();
+        String hostId = "NoTracinghostID";
+        return Comm.getStarterCommand(adaptorName, name, workerPort, masterName, workingDir, installDir, appDir,
+            classPathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
+            "NoTracingHostID", container);
     }
 
 

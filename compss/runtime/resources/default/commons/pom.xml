@@ -36,6 +36,7 @@
         <dependency>
             <groupId>es.bsc.conn</groupId>
             <artifactId>connectors-all</artifactId>
+            <version>${conn.version}</version>
         </dependency>
         <dependency>
             <groupId>es.bsc.compss</groupId>
@@ -145,6 +146,15 @@
                                     <overWrite>false</overWrite>
                                     <outputDirectory>${project.build.directory}/cloud-conn/</outputDirectory>
                                     <destFileName>docker-conn.jar</destFileName>
+                                </artifactItem>
+                                <artifactItem>
+                                    <groupId>es.bsc.conn</groupId>
+                                    <artifactId>rotterdam-conn</artifactId>
+                                    <version>${conn.version}</version>
+                                    <type>jar</type>
+                                    <overWrite>false</overWrite>
+                                    <outputDirectory>${project.build.directory}/cloud-conn/</outputDirectory>
+                                    <destFileName>rotterdam-conn.jar</destFileName>
                                 </artifactItem>
                             </artifactItems>
                             <overWriteReleases>false</overWriteReleases>

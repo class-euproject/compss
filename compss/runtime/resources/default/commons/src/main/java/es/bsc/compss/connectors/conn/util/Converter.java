@@ -157,6 +157,7 @@ public class Converter {
 
         CloudMethodResourceDescription cmrd = new CloudMethodResourceDescription();
         cmrd.setName(vr.getIp());
+        cmrd.setPort(vr.getPort());
         setHardwareInResourceDescription(cmrd, vr.getHd(), requested);
         setSoftwareInResourceDescription(cmrd, vr.getSd(), requested);
         CloudImageDescription cid = getCloudImageDescription(vr.getHd(), vr.getSd(), requested);

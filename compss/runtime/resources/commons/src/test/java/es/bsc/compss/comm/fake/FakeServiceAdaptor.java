@@ -48,7 +48,11 @@ public class FakeServiceAdaptor implements CommAdaptor {
     public COMPSsWorker initWorker(Configuration config) {
         ServiceConfiguration serviceCfg = (ServiceConfiguration) config;
         return new FakeNode(serviceCfg.getWsdl());
+    }
 
+    @Override
+    public COMPSsWorker initWorker(Configuration config, String name, int port) {
+        return this.initWorker(config);
     }
 
     @Override
@@ -74,7 +78,7 @@ public class FakeServiceAdaptor implements CommAdaptor {
     @Override
     public StarterCommand getStarterCommand(String workerName, int workerPort, String masterName, String workingDir,
         String installDir, String appDir, String classpathFromFile, String pythonpathFromFile, String libPathFromFile,
-        int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId) {
+        int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId, boolean container) {
         return null;
     }
 

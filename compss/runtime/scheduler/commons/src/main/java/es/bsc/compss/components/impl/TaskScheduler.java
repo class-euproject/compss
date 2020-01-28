@@ -787,6 +787,7 @@ public class TaskScheduler {
             action.tryToLaunch();
         } catch (BlockedActionException | UnassignedActionException | InvalidSchedulingException e) {
             // Can not be blocked nor unassigned
+            e.printStackTrace();
         }
     }
 

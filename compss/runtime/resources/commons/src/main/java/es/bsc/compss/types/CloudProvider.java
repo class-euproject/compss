@@ -360,6 +360,7 @@ public class CloudProvider {
      * @return The new ResourceCreationRequest.
      */
     public ResourceCreationRequest requestResourceCreation(CloudMethodResourceDescription instanceDescription) {
+        System.out.println("CloudProvider::requestResourceCreation");
         int[][] simultaneousCounts = computeSimultaneousCounts(instanceDescription);
         String requestID = "compss" + UUID.randomUUID().toString();
         ResourceCreationRequest rcr =

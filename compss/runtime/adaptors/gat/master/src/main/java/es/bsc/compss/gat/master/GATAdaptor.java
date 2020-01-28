@@ -164,6 +164,12 @@ public class GATAdaptor implements CommAdaptor {
         return node;
     }
 
+    // GAT adaptor initializes the worker each time it sends a new job
+    @Override
+    public GATWorkerNode initWorker(Configuration config, String name, int port) {
+        return this.initWorker(config);
+    }
+
     /**
      * Adds the transfer context preferences to the Adaptor.
      * 
@@ -236,7 +242,7 @@ public class GATAdaptor implements CommAdaptor {
     @Override
     public StarterCommand getStarterCommand(String workerName, int workerPort, String masterName, String workingDir,
         String installDir, String appDir, String classpathFromFile, String pythonpathFromFile, String libPathFromFile,
-        int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId) {
+        int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId, boolean container) {
         return null;
     }
 

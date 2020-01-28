@@ -676,16 +676,18 @@ public class Comm {
      * @param totalFPGA total FPGA
      * @param limitOfTasks limit of tasks
      * @param hostId tracing worker identifier
+     * @param container defines whether the worker will be run in a container
      * @return WorkerStarterCommand
      */
-    public StarterCommand getStarterCommand(String adaptorName, String workerName, int workerPort, String masterName,
-        String workingDir, String installDir, String appDir, String classpathFromFile, String pythonpathFromFile,
-        String libPathFromFile, int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId) {
+    public static StarterCommand getStarterCommand(String adaptorName, String workerName, int workerPort,
+        String masterName, String workingDir, String installDir, String appDir, String classpathFromFile,
+        String pythonpathFromFile, String libPathFromFile, int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks,
+        String hostId, boolean container) {
 
         CommAdaptor adaptor = ADAPTORS.get(adaptorName);
         return adaptor.getStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
-            classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
-            hostId);
+            classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks, hostId,
+            container);
 
     }
 

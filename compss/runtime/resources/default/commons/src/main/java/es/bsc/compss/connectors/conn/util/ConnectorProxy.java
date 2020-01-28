@@ -16,6 +16,7 @@
  */
 package es.bsc.compss.connectors.conn.util;
 
+import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.comm.Comm;
 import es.bsc.compss.connectors.ConnectorException;
 
@@ -26,6 +27,7 @@ import es.bsc.conn.types.SoftwareDescription;
 import es.bsc.conn.types.StarterCommand;
 import es.bsc.conn.types.VirtualResource;
 
+import java.util.List;
 import java.util.Map;
 
 
@@ -57,21 +59,19 @@ public class ConnectorProxy {
      * @param hardwareDescription Connector hardware properties.
      * @param softwareDescription Connector software properties.
      * @param properties Specific properties.
-     * @param adaptorName Name of the adaptor used to connect to this machine.
+     * @param starterCMD Starter command
+     * @param replicas Amount of replicas to deploy
      * @return Machine Object.
      * @throws ConnectorException If an invalid connector is provided or if machine cannot be created.
      */
     public Object create(String name, HardwareDescription hardwareDescription, SoftwareDescription softwareDescription,
-        Map<String, String> properties, String adaptorName) throws ConnectorException {
-
+        Map<String, String> properties, StarterCommand starterCMD, int replicas) throws ConnectorException {
+        System.out.println("ConnectorProxy::create");
         if (this.connector == null) {
             throw new ConnectorException(ERROR_NO_CONN);
         }
         Object created;
-        int replicas = 1;
         try {
-            StarterCommand starterCMD =
-                getStarterCommand(adaptorName, name, hardwareDescription, softwareDescription, properties);
             created =
                 this.connector.create(name, hardwareDescription, softwareDescription, properties, starterCMD, replicas);
         } catch (ConnException ce) {
@@ -81,9 +81,24 @@ public class ConnectorProxy {
     }
 
     private StarterCommand getStarterCommand(String adaptorName, String name, HardwareDescription hd,
-        SoftwareDescription sd, Map<String, String> properties) {
-        return null;
-
+        SoftwareDescription sd, Map<String, String> properties, boolean container) {
+        String workerName = name;
+        int workerPort = -1; //
+        String masterName = System.getProperty(COMPSsConstants.MASTER_NAME); //
+        String workingDir = null; //
+        String installDir = null; //
+        String appDir = null; //
+        String classpathFromFile = null; //
+        String pythonpathFromFile = null; //
+        String libPathFromFile = null; //
+        int totalCPU = hd.getTotalCPUComputingUnits(); //
+        int totalGPU = hd.getTotalGPUComputingUnits(); //
+        int totalFPGA = hd.getTotalFPGAComputingUnits(); //
+        int limitOfTasks = hd.getTotalCPUComputingUnits(); //
+        String hostId = "NoTracingHostID"; //
+        return Comm.getStarterCommand(adaptorName, workerName, workerPort, masterName, workingDir, installDir, appDir,
+            classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks, hostId,
+            container);
     }
 
     /**
@@ -107,18 +122,19 @@ public class ConnectorProxy {
      * @return Virtual Resoure representing the machine.
      * @throws ConnectorException If an invalid connector is set.
      */
-    public VirtualResource waitUntilCreation(Object id) throws ConnectorException {
+    public List<VirtualResource> waitUntilCreation(Object... id) throws ConnectorException {
+        System.out.println("ConnectorProxy::waitUntilCreation");
         if (this.connector == null) {
             throw new ConnectorException(ERROR_NO_CONN);
         }
 
-        VirtualResource vr;
+        List<VirtualResource> vrs;
         try {
-            vr = this.connector.waitUntilCreation(id);
+            vrs = this.connector.waitUntilCreation(id);
         } catch (ConnException ce) {
             throw new ConnectorException(ce);
         }
-        return vr;
+        return vrs;
     }
 
     /**
