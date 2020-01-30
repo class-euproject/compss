@@ -48,43 +48,6 @@ public class WorkerStarter extends Starter {
 
     // Logger
     private static final Logger LOGGER = LogManager.getLogger(Loggers.COMM);
-    private static final boolean DEBUG = LOGGER.isDebugEnabled();
-
-    // Static Environment variables
-
-    private static final boolean IS_CPU_AFFINITY_DEFINED =
-        System.getProperty(COMPSsConstants.WORKER_CPU_AFFINITY) != null
-            && !System.getProperty(COMPSsConstants.WORKER_CPU_AFFINITY).isEmpty();
-
-    private static final boolean IS_GPU_AFFINITY_DEFINED =
-        System.getProperty(COMPSsConstants.WORKER_GPU_AFFINITY) != null
-            && !System.getProperty(COMPSsConstants.WORKER_GPU_AFFINITY).isEmpty();
-
-    private static final boolean IS_FPGA_AFFINITY_DEFINED =
-        System.getProperty(COMPSsConstants.WORKER_FPGA_AFFINITY) != null
-            && !System.getProperty(COMPSsConstants.WORKER_FPGA_AFFINITY).isEmpty();
-
-    // Deployment ID
-    private static final String DEPLOYMENT_ID = System.getProperty(COMPSsConstants.DEPLOYMENT_ID);
-
-    // Scripts configuration
-
-    private static final String CLEAN_SCRIPT_PATH = "Runtime" + File.separator + "scripts" + File.separator + "system"
-        + File.separator + "adaptors" + File.separator + "nio" + File.separator;
-    private static final String CLEAN_SCRIPT_NAME = "persistent_worker_clean.sh";
-    // Connection related parameters
-    private static final long START_WORKER_INITIAL_WAIT = 100;
-    private static final long WAIT_TIME_UNIT = 500;
-    private static final long MAX_WAIT_FOR_SSH = 160_000;
-    private static final long MAX_WAIT_FOR_INIT = 20_000;
-    private static final String ERROR_SHUTTING_DOWN_RETRY = "ERROR: Cannot shutdown failed worker PID process";
-
-    // Starting workers
-    private static final Map<String, WorkerStarter> ADDRESS_TO_WORKER_STARTER = new TreeMap<>();
-
-    // Instance attributes
-    private boolean workerIsReady = false;
-    private boolean toStop = false;
 
 
     /**
