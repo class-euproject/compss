@@ -60,6 +60,8 @@ usage() {
                     container directories. The format is: <host dir>:<cont. dir>,...
                     This will also work with volumes.
 
+    --env           Environmental variable to set inside the container.
+
     --              After this flag, the input will not be parsed and it will be
                     considered as the command with which to initialize the
                     container.
@@ -96,6 +98,7 @@ FAIL_IF_PULL=false
 SSH_USER=`whoami`
 REUSE_EXISTING=false
 CHECK_IMAGE=true
+ENV_VARS=""
 while [ "$1" != "" ]; do
     case $1 in
         -h | --help)
@@ -133,6 +136,12 @@ while [ "$1" != "" ]; do
             REUSE_EXISTING=true;;
         --range)
             PORT_RANGE="$2"
+            shift;;
+        --env)
+            if [ -n "${ENV_VARS}" -a "${ENV_VARS}" != "" ]; then
+                ENV_VARS="${ENV_VARS},"
+            fi
+            ENV_VARS="${ENV_VARS}$2"
             shift;;
         --)
             shift
@@ -226,4 +235,4 @@ if [ -n "${PORT_RANGE}" ]; then
     fi
 fi
 
-ssh -o BatchMode=yes -o StrictHostKeyChecking=no ${SSH_USER}@${WORKER_ADDRESS} "/bin/sh -s" < ${COMPSS_HOME:-/opt/COMPSs}/Runtime/scripts/system/adaptors/nio/docker/docker_worker.sh "${IMAGE_NAME}" "${IMAGE_ID-null}" "${CONTAINER_NAME}" "${PULL_IMAGE}" "${CONTAINER_PORTS:-null}" "${PORT_RANGE:-null}" "${CONTAINER_VOLUMES:-null}" "${REPOSITORY:-null}" "${REUSE_EXISTING}" "${FAIL_IF_PULL}" "${LAUNCH_COMMAND}"
+ssh -o BatchMode=yes -o StrictHostKeyChecking=no ${SSH_USER}@${WORKER_ADDRESS} "/bin/sh -s" < ${COMPSS_HOME:-/opt/COMPSs}/Runtime/scripts/system/adaptors/nio/docker/docker_worker.sh "${IMAGE_NAME}" "${IMAGE_ID-null}" "${CONTAINER_NAME}" "${PULL_IMAGE}" "${CONTAINER_PORTS:-null}" "${PORT_RANGE:-null}" "${CONTAINER_VOLUMES:-null}" "${REPOSITORY:-null}" "${REUSE_EXISTING}" "${FAIL_IF_PULL}" "${ENV_VARS:-null}" "${LAUNCH_COMMAND}"

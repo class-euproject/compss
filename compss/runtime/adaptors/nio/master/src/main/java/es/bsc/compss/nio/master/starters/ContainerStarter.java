@@ -4,12 +4,17 @@ import es.bsc.comm.nio.NIONode;
 import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.comm.Comm;
 import es.bsc.compss.exceptions.InitNodeException;
+import es.bsc.compss.log.Loggers;
 import es.bsc.compss.nio.NIOTracer;
 import es.bsc.compss.nio.master.NIOAdaptor;
+import es.bsc.compss.nio.master.NIOContainerStarterCommand;
+import es.bsc.compss.nio.master.NIOStarterCommand;
 import es.bsc.compss.nio.master.NIOWorkerNode;
 import es.bsc.compss.nio.master.handlers.Ender;
 import es.bsc.compss.util.Tracer;
+import org.apache.logging.log4j.LogManager;
 
+import java.io.File;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -45,8 +50,7 @@ public abstract class ContainerStarter extends Starter {
 
     }
 
-    @Override
-    protected String[] generateStartCommand(int workerPort, String masterName, String hostID) throws InitNodeException {
+    private String[] useContainer(int workerPort, String masterName, String extraeHostId) throws InitNodeException {
         String workerLibPath = "";
         String libPathFromFile = nw.getLibPath();
         if (!libPathFromFile.isEmpty()) {
@@ -58,6 +62,7 @@ public abstract class ContainerStarter extends Starter {
         } else {
             workerLibPath = LIBPATH_FROM_ENVIRONMENT;
         }
+        workerLibPath += ":/opt/COMPSs/Dependencies/extrae/lib";
 
         String appDir = nw.getAppDir();
         if (appDir == null || appDir.isEmpty()) {
@@ -134,7 +139,7 @@ public abstract class ContainerStarter extends Starter {
         final String installDir = nw.getInstallDir();
         // appDir
         // workerLibPath
-        // classpath
+        // workerClasspath
 
         String workerPythonpath = "";
         String pythonpathFromFile = nw.getPythonpath();
@@ -150,14 +155,11 @@ public abstract class ContainerStarter extends Starter {
 
         final int traceLevel = NIOTracer.getLevel();
         final String extraeFile = NIOTracer.getExtraeFile();
-        String extraeHostId;
-        if (Tracer.isActivated()) {
-            // NumSlots per host is ignored --> 0
-            Integer hostId = NIOTracer.registerHost(nw.getName(), 0);
-            extraeHostId = String.valueOf(hostId.toString());
-        } else {
-            extraeHostId = "NoTracinghostID";
-        }
+        /*
+         * String extraeHostId; if (Tracer.isActivated()) { // NumSlots per host is ignored --> 0 Integer hostId =
+         * NIOTracer.registerHost(nw.getName(), 0); extraeHostId = String.valueOf(hostId.toString()); } else {
+         * extraeHostId = "NoTracinghostID"; }
+         */
 
         String storageConf = System.getProperty(COMPSsConstants.STORAGE_CONF);
         if (storageConf == null || storageConf.equals("") || storageConf.equals("null")) {
@@ -209,12 +211,11 @@ public abstract class ContainerStarter extends Starter {
         cmd.add("/usr/bin/java");
         cmd.addAll(Arrays.asList(jvmFlags));
         cmd.addAll(Arrays.asList("-XX:+PerfDisableSharedMem", "-XX:-UsePerfData", "-XX:+UseG1GC",
-            "-XX:+UseThreadPriorities", "-XX:ThreadPriorityPolicy=42",
             "-Dlog4j.configurationFile=" + installDir + "/Runtime/configuration/log/" + itlog4jFile,
             "-Dcompss.python.interpreter=" + pythonInterpreter, "-Dcompss.python.version=" + pythonVersion,
             "-Dcompss.python.virtualenvironment=" + pythonVirtualEnvironment,
             "-Dcompss.python.propagate_virtualenvironment=" + pythonPropagateVirtualEnvironment,
-            "-Dcompss.worker.removeWD=false", "-Djava.library.path=" + workerLibPath));
+            "-Dcompss.worker.removeWD=false", "-Dcompss.streaming=NONE", "-Djava.library.path=" + workerLibPath));
         cmd.addAll(Arrays.asList("-cp", workerClasspath));
         cmd.add(NIO_WORKER_CLASS_NAME);
         cmd.add(Boolean.toString(debug)); // 0
@@ -253,6 +254,41 @@ public abstract class ContainerStarter extends Starter {
         cmd.add(pythonMpiWorker); // 33
 
         return cmd.toArray(new String[0]);
+    }
+
+    @Override
+    protected String[] generateStartCommand(int workerPort, String masterName, String hostId) throws InitNodeException {
+        final String workingDir = this.nw.getWorkingDir();
+        final String installDir = this.nw.getInstallDir();
+        final String appDir = "/compss";
+        String classpathFromFile = this.nw.getClasspath();
+        String pythonpathFromFile = this.nw.getPythonpath();
+        String libPathFromFile = this.nw.getLibPath();
+        String workerName = this.nw.getName();
+        int totalCPU = this.nw.getTotalComputingUnits();
+        int totalGPU = this.nw.getTotalGPUs();
+        int totalFPGA = this.nw.getTotalFPGAs();
+        int limitOfTasks = this.nw.getLimitOfTasks();
+
+        try {
+            return new NIOStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
+                classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
+                hostId, true).getStartCommand();
+        } catch (Exception e) {
+            throw new InitNodeException(e);
+        }
+
+        /*
+         * try { if (Tracer.isActivated()) { return new NIOStarterCommand(workerName, workerPort, masterName,
+         * workingDir, installDir, appDir, classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU,
+         * totalFPGA, limitOfTasks, hostId).getStartCommand(); } else { String[] cmd = new
+         * NIOContainerStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
+         * classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
+         * hostId).getStartCommand(); System.out.println("CONTAINERSTARTERCOMMAND: " + String.join(" ", cmd));
+         * System.out.println(); System.out.println("USECONTAINER: " + String.join(" ", useContainer(workerPort,
+         * masterName, hostId))); return cmd; // return useContainer(workerPort, masterName, hostId); } } catch
+         * (Exception e) { throw new InitNodeException(e); }
+         */
     }
 
     private boolean isSameNetwork(String[] ip1, String[] ip2, int amount) {

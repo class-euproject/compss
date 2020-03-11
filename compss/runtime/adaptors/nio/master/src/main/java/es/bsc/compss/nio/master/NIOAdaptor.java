@@ -866,14 +866,16 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
     public StarterCommand getStarterCommand(String workerName, int workerPort, String masterName, String workingDir,
         String installDir, String appDir, String classpathFromFile, String pythonpathFromFile, String libPathFromFile,
         int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId, boolean container) {
-        if (container) {
-            return new NIOContainerStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
-                classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
-                hostId);
-        } else {
-            return new NIOStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
-                classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
-                hostId);
-        }
+
+        /*
+         * if (container) { return new NIOContainerStarterCommand(workerName, workerPort, masterName, workingDir,
+         * installDir, appDir, classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA,
+         * limitOfTasks, hostId); } else { return new NIOStarterCommand(workerName, workerPort, masterName, workingDir,
+         * installDir, appDir, classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA,
+         * limitOfTasks, hostId); }
+         */
+        return new NIOStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
+            classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks, hostId,
+            container);
     }
 }

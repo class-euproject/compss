@@ -25,8 +25,9 @@ CONTAINER_VOLUMES="$7"
 REPOSITORY="$8"
 REUSE_EXISTING="$9"
 FAIL_IF_PULL="${10}"
+ENV_VARS="${11}"
 
-shift 10
+shift 11
 LAUNCH_COMMAND=""
 for ARG in "$@"
 do
@@ -68,6 +69,18 @@ else
         fi
     done
     CONTAINER_VOLUMES="-v `echo ${CONTAINER_VOLUMES} | sed -r 's/,/ -v /g'`"
+fi
+
+if [ "${ENV_VARS}" = "" ]; then
+    unset ENV_VARS
+else
+    L_ENV_VARS=""
+    for VAR in `echo ${ENV_VARS} | sed -r 's/,/ /g'`; do
+        if [ -n "`echo ${VAR} | cut -d"=" -f1`" -a -n "`echo ${VAR} | cut -d"=" -f2`" ]; then
+            L_ENV_VARS="-e ${VAR} "
+        fi
+    done
+    ENV_VARS="${L_ENV_VARS}"
 fi
 
 IMAGE_LIST=$(${DOCKER} images --format "{{.Repository}}:{{.Tag}}" | grep "${IMAGE_NAME}")
@@ -198,7 +211,7 @@ fi
 #         }
 #      }" \
 #      http://v`${DOCKER} version --format "{{.Server.APIVersion}}"`/containers/create?name=${CONTAINER_NAME} > /dev/null
-${DOCKER} run -d -t `echo ${CONTAINER_PORTS} | sed 's/,/ /g' | xargs printf -- "-p %s"` ${CONTAINER_VOLUMES} --name ${CONTAINER_NAME} ${IMAGE_NAME} /bin/sh -c "${LAUNCH_COMMAND}" > /dev/null &
+${DOCKER} run -d -t `echo ${CONTAINER_PORTS} | sed 's/,/ /g' | xargs printf -- "-p %s"` ${CONTAINER_VOLUMES} ${ENV_VARS} --name ${CONTAINER_NAME} ${IMAGE_NAME} /bin/sh -c "${LAUNCH_COMMAND}" > /dev/null &
 #${DOCKER} exec -t -d ${CONTAINER_NAME} /bin/sh -c "${LAUNCH_COMMAND}"
 
 CREATION_FAILED=$?
