@@ -18,8 +18,10 @@ package es.bsc.compss.connectors.conn.util;
 
 import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.comm.Comm;
+import es.bsc.compss.comm.CommAdaptor;
 import es.bsc.compss.connectors.ConnectorException;
 
+import es.bsc.compss.types.resources.configuration.MethodConfiguration;
 import es.bsc.conn.Connector;
 import es.bsc.conn.exceptions.ConnException;
 import es.bsc.conn.types.HardwareDescription;
@@ -59,17 +61,18 @@ public class ConnectorProxy {
      * @param hardwareDescription Connector hardware properties.
      * @param softwareDescription Connector software properties.
      * @param properties Specific properties.
-     * @param starterCMD Starter command
      * @param replicas Amount of replicas to deploy
      * @return Machine Object.
      * @throws ConnectorException If an invalid connector is provided or if machine cannot be created.
      */
-    public Object create(String name, HardwareDescription hardwareDescription, SoftwareDescription softwareDescription,
-        Map<String, String> properties, StarterCommand starterCMD, int replicas) throws ConnectorException {
-        System.out.println("ConnectorProxy::create");
+    public Object create(String name, MethodConfiguration cid, HardwareDescription hardwareDescription,
+        SoftwareDescription softwareDescription, Map<String, String> properties, int replicas, boolean container)
+        throws ConnectorException {
         if (this.connector == null) {
             throw new ConnectorException(ERROR_NO_CONN);
         }
+        StarterCommand starterCMD = getStarterCommand(cid.getAdaptorName(), cid.getMinPort(), name, hardwareDescription,
+            softwareDescription, properties, container);
         Object created;
         try {
             created =
@@ -80,25 +83,20 @@ public class ConnectorProxy {
         return created;
     }
 
-    private StarterCommand getStarterCommand(String adaptorName, String name, HardwareDescription hd,
+    private StarterCommand getStarterCommand(String adaptorName, int minPort, String name, HardwareDescription hd,
         SoftwareDescription sd, Map<String, String> properties, boolean container) {
-        String workerName = name;
-        int workerPort = -1; //
-        String masterName = System.getProperty(COMPSsConstants.MASTER_NAME); //
-        String workingDir = null; //
-        String installDir = null; //
-        String appDir = null; //
-        String classpathFromFile = null; //
-        String pythonpathFromFile = null; //
-        String libPathFromFile = null; //
-        int totalCPU = hd.getTotalCPUComputingUnits(); //
-        int totalGPU = hd.getTotalGPUComputingUnits(); //
-        int totalFPGA = hd.getTotalFPGAComputingUnits(); //
-        int limitOfTasks = hd.getTotalCPUComputingUnits(); //
-        String hostId = "NoTracingHostID"; //
-        return Comm.getStarterCommand(adaptorName, workerName, workerPort, masterName, workingDir, installDir, appDir,
-            classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks, hostId,
-            container);
+        CommAdaptor adaptor = Comm.getAdaptor(adaptorName);
+        if (adaptor != null) {
+            String hostId = null; // Set by connector
+            return adaptor.getStarterCommand(name, minPort, Comm.getAppHost().getName(),
+                sd.getInstallation().getWorkingDir(), sd.getInstallation().getInstallDir(),
+                sd.getInstallation().getAppDir(), sd.getInstallation().getClasspath(),
+                sd.getInstallation().getPythonPath(), sd.getInstallation().getLibraryPath(),
+                hd.getTotalCPUComputingUnits(), hd.getTotalGPUComputingUnits(), hd.getTotalFPGAComputingUnits(),
+                sd.getInstallation().getLimitOfTasks(), hostId, container);
+        } else {
+            return null;
+        }
     }
 
     /**
@@ -123,7 +121,6 @@ public class ConnectorProxy {
      * @throws ConnectorException If an invalid connector is set.
      */
     public List<VirtualResource> waitUntilCreation(Object... id) throws ConnectorException {
-        System.out.println("ConnectorProxy::waitUntilCreation");
         if (this.connector == null) {
             throw new ConnectorException(ERROR_NO_CONN);
         }

@@ -222,7 +222,7 @@ public class WorkerStarter extends Starter {
         try {
             return new NIOStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
                 classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
-                hostId).getStartCommand();
+                hostId, false).getStartCommand();
         } catch (Exception e) {
             throw new InitNodeException(e);
         }

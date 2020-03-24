@@ -85,12 +85,13 @@ public class RotterdamStarter extends ContainerStarter {
             if (httpResponse.getStatusLine().getStatusCode() != 200 && "ok".equals(taskCreateResponse.getResp())) {
                 throw new InitNodeException("Task could not be created");
             }
+            String taskId = taskCreateResponse.getTask().getId();
             httpResponse.close();
 
             RotterdamTaskRequestStatus status;
             do {
                 HttpGet taskCheckRequest =
-                    new HttpGet(SERVER_BASE.concat(String.format(TASK_CHECK_TEMPLATE, dock, name)));
+                    new HttpGet(SERVER_BASE.concat(String.format(TASK_CHECK_TEMPLATE, dock, taskId)));
                 CloseableHttpResponse response = httpClient.execute(taskCheckRequest);
                 String responseJson = IOUtils.toString(response.getEntity().getContent(), "utf-8");
                 System.out.println(g.toJson(g.fromJson(responseJson, Map.class)));

@@ -12,44 +12,44 @@ import org.apache.logging.log4j.Logger;
 public abstract class WorkerStarterCommand implements StarterCommand {
 
     // Logger
-    private static final Logger LOGGER = LogManager.getLogger(Loggers.COMM);
+    protected static final Logger LOGGER = LogManager.getLogger(Loggers.COMM);
 
     // Static Environment variables
-    private static final String LIB_SEPARATOR = ":";
-    private static final String CLASSPATH_FROM_ENVIRONMENT = (System.getProperty(COMPSsConstants.WORKER_CP) != null
+    protected static final String LIB_SEPARATOR = ":";
+    protected static final String CLASSPATH_FROM_ENVIRONMENT = (System.getProperty(COMPSsConstants.WORKER_CP) != null
         && !System.getProperty(COMPSsConstants.WORKER_CP).isEmpty()) ? System.getProperty(COMPSsConstants.WORKER_CP)
             : "";
 
-    private static final String PYTHONPATH_FROM_ENVIRONMENT = (System.getProperty(COMPSsConstants.WORKER_PP) != null
+    protected static final String PYTHONPATH_FROM_ENVIRONMENT = (System.getProperty(COMPSsConstants.WORKER_PP) != null
         && !System.getProperty(COMPSsConstants.WORKER_PP).isEmpty()) ? System.getProperty(COMPSsConstants.WORKER_PP)
             : "";
 
-    private static final String LIBPATH_FROM_ENVIRONMENT = (System.getenv(COMPSsConstants.LD_LIBRARY_PATH) != null
+    protected static final String LIBPATH_FROM_ENVIRONMENT = (System.getenv(COMPSsConstants.LD_LIBRARY_PATH) != null
         && !System.getenv(COMPSsConstants.LD_LIBRARY_PATH).isEmpty()) ? System.getenv(COMPSsConstants.LD_LIBRARY_PATH)
             : "";
 
-    private static final boolean IS_CPU_AFFINITY_DEFINED =
+    protected static final boolean IS_CPU_AFFINITY_DEFINED =
         System.getProperty(COMPSsConstants.WORKER_CPU_AFFINITY) != null
             && !System.getProperty(COMPSsConstants.WORKER_CPU_AFFINITY).isEmpty();
     protected static final String CPU_AFFINITY =
         IS_CPU_AFFINITY_DEFINED ? System.getProperty(COMPSsConstants.WORKER_CPU_AFFINITY)
             : ThreadBinder.BINDER_DISABLED;
 
-    private static final boolean IS_GPU_AFFINITY_DEFINED =
+    protected static final boolean IS_GPU_AFFINITY_DEFINED =
         System.getProperty(COMPSsConstants.WORKER_GPU_AFFINITY) != null
             && !System.getProperty(COMPSsConstants.WORKER_GPU_AFFINITY).isEmpty();
     protected static final String GPU_AFFINITY =
         IS_GPU_AFFINITY_DEFINED ? System.getProperty(COMPSsConstants.WORKER_GPU_AFFINITY)
             : ThreadBinder.BINDER_DISABLED;
 
-    private static final boolean IS_FPGA_AFFINITY_DEFINED =
+    protected static final boolean IS_FPGA_AFFINITY_DEFINED =
         System.getProperty(COMPSsConstants.WORKER_FPGA_AFFINITY) != null
             && !System.getProperty(COMPSsConstants.WORKER_FPGA_AFFINITY).isEmpty();
     protected static final String FPGA_AFFINITY =
         IS_FPGA_AFFINITY_DEFINED ? System.getProperty(COMPSsConstants.WORKER_FPGA_AFFINITY)
             : ThreadBinder.BINDER_DISABLED;
 
-    private static final String WORKER_APPDIR_FROM_ENVIRONMENT =
+    protected static final String WORKER_APPDIR_FROM_ENVIRONMENT =
         System.getProperty(COMPSsConstants.WORKER_APPDIR) != null
             && !System.getProperty(COMPSsConstants.WORKER_APPDIR).isEmpty()
                 ? System.getProperty(COMPSsConstants.WORKER_APPDIR)
@@ -85,6 +85,8 @@ public abstract class WorkerStarterCommand implements StarterCommand {
     protected String hostId;
     protected String lang;
 
+    protected String jarName;
+
 
     /**
      * Creates the WorkerStarterCommand.
@@ -107,7 +109,6 @@ public abstract class WorkerStarterCommand implements StarterCommand {
     public WorkerStarterCommand(String workerName, int workerPort, String masterName, String workingDir,
         String installDir, String appDir, String classpathFromFile, String pythonpathFromFile, String libPathFromFile,
         int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId) {
-
         this.workerName = workerName;
         this.workerPort = workerPort;
         this.masterName = masterName;

@@ -35,6 +35,7 @@
         <!-- BSC Components versions -->
         <cepbatools-extrae.version>1.4</cepbatools-extrae.version>
         <comm.version>1.6-20</comm.version>
+        <!--<conn.version>1.5-35</conn.version>-->
         <conn.version>1.0-U</conn.version>
 
         <!-- ZK version -->
@@ -216,7 +217,7 @@
             </plugin>
 
             <!-- Check Style -->
-            <plugin>
+            <!--<plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <executions>
@@ -237,7 +238,7 @@
                         </configuration>
                     </execution>
                 </executions>
-            </plugin>
+            </plugin>-->
         </plugins>
 
         <pluginManagement>

@@ -4,6 +4,7 @@ import es.bsc.comm.nio.NIONode;
 import es.bsc.compss.exceptions.InitNodeException;
 import es.bsc.compss.nio.master.NIOWorkerNode;
 import es.bsc.compss.nio.master.handlers.ProcessOut;
+import es.bsc.compss.util.Tracer;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -121,9 +122,13 @@ public class DockerStarter extends ContainerStarter {
 
         cmd.add("--volumes");
         cmd.add(String.format("compss:%s", "/tmp/COMPSsWorker"));
+
+        cmd.add("--env");
+        cmd.add("LD_LIBRARY_PATH=/usr/lib/jvm/java-8-openjdk-amd64/jre/lib/amd64/server");
+
         cmd.add("--");
-        cmd.add("mkdir -p " + this.nw.getWorkingDir() + "/jobs && " + "mkdir -p " + this.nw.getWorkingDir() + "/log && "
-            + String.join(" ", command));
+
+        cmd.add(String.join(" ", command));
 
         LOGGER.debug("Running script: " + String.join(" ",
             cmd.stream().map(s -> s.contains(" ") ? "\"" + s + "\"" : s).collect(Collectors.toList())));

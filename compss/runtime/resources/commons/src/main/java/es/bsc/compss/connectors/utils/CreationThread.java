@@ -109,7 +109,6 @@ public class CreationThread extends Thread {
 
     @Override
     public void run() {
-        System.out.println("CreationThread::run");
         boolean check = operations.getCheck();
         RUNTIME_LOGGER.debug("Operations check = " + check);
 
@@ -177,8 +176,8 @@ public class CreationThread extends Thread {
                     }
                 }
                 g.setWorker(cmw);
-                // ResourceManager.addCloudWorker(this.rcr, cmw, g.getDescription());
-                ResourceManager.addDynamicWorker(cmw, g.getDescription());
+                ResourceManager.addCloudWorker(this.rcr, cmw, g.getDescription());
+                // ResourceManager.addDynamicWorker(cmw, g.getDescription());
             } else {
                 // Resources are provided in an existing VM
                 ResourceManager.increasedCloudWorker(this.rcr, r, g.getDescription());
@@ -211,10 +210,8 @@ public class CreationThread extends Thread {
         List<VM> granted;
         Object envID;
         // ASK FOR THE VIRTUAL RESOURCE
-        System.out.println("CreationThread::createResourceOnProvider");
         try {
             // Turn on the VM and expects the new mr description
-            System.out.println("Calling poweron");
             envID = this.operations.poweron(this.name, requested, replicas);
         } catch (ConnectorException e) {
             RUNTIME_LOGGER.error(ERROR_ASKING_NEW_RESOURCE + provider + "\n", e);
@@ -231,7 +228,6 @@ public class CreationThread extends Thread {
         // WAITING FOR THE RESOURCES TO BE RUNNING
         try {
             // Wait until the VM has been created
-            System.out.println("Calling WaitCreation");
             granted = this.operations.waitCreation(envID, requested);
         } catch (ConnectorException e) {
             RUNTIME_LOGGER.error(ERROR_WAITING_VM + this.provider + "\n", e);

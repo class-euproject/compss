@@ -89,14 +89,14 @@
 
     <!-- REPOSITORIES -->
     <repositories>
-        <repository>
+        <!--<repository>
             <id>central</id>
             <name>Central Repository</name>
             <url>http://central.maven.org/maven2/</url>
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-        </repository>
+        </repository>-->
         <repository>
             <id>ZK CE</id>
             <name>ZK CE Repository</name>
@@ -112,7 +112,7 @@
         </repository>
     </repositories>
 
-    <pluginRepositories>
+    <!--<pluginRepositories>
         <pluginRepository>
             <releases>
                 <updatePolicy>never</updatePolicy>
@@ -124,7 +124,7 @@
             <name>Central Repository</name>
             <url>http://central.maven.org/maven2/</url>
         </pluginRepository>
-    </pluginRepositories>
+    </pluginRepositories>-->
 
     <!-- DEPENDENCIES -->
     <dependencyManagement>

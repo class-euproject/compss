@@ -4,17 +4,12 @@ import es.bsc.comm.nio.NIONode;
 import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.comm.Comm;
 import es.bsc.compss.exceptions.InitNodeException;
-import es.bsc.compss.log.Loggers;
 import es.bsc.compss.nio.NIOTracer;
 import es.bsc.compss.nio.master.NIOAdaptor;
-import es.bsc.compss.nio.master.NIOContainerStarterCommand;
 import es.bsc.compss.nio.master.NIOStarterCommand;
 import es.bsc.compss.nio.master.NIOWorkerNode;
 import es.bsc.compss.nio.master.handlers.Ender;
-import es.bsc.compss.util.Tracer;
-import org.apache.logging.log4j.LogManager;
 
-import java.io.File;
 import java.net.InterfaceAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;

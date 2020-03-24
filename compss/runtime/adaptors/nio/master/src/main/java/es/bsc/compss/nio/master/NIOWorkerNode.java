@@ -116,7 +116,6 @@ public class NIOWorkerNode extends COMPSsWorker {
      */
     public NIOWorkerNode(NIOConfiguration config, NIOAdaptor adaptor, NIONode node) {
         this(config, adaptor);
-        System.out.println("CREATED NIOWORKERNODE WITH NODE");
         this.node = node;
     }
 
@@ -127,7 +126,6 @@ public class NIOWorkerNode extends COMPSsWorker {
 
     @Override
     public void start() throws InitNodeException {
-        System.out.println("NIOWORKERNODE STARTED");
         if (this.node != null) {
             LOGGER.info("The node was already created. Skipping Starter initialization");
             this.started = true;

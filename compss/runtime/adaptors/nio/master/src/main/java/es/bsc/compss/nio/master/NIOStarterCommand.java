@@ -6,6 +6,7 @@ import es.bsc.compss.nio.NIOTracer;
 import es.bsc.compss.types.WorkerStarterCommand;
 
 import java.io.File;
+import java.util.Arrays;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -44,17 +45,26 @@ public class NIOStarterCommand extends WorkerStarterCommand {
      */
     public NIOStarterCommand(String workerName, int workerPort, String masterName, String workingDir, String installDir,
         String appDir, String classpathFromFile, String pythonpathFromFile, String libPathFromFile, int totalCPU,
-        int totalGPU, int totalFPGA, int limitOfTasks, String hostId) {
-
+        int totalGPU, int totalFPGA, int limitOfTasks, String hostId, boolean isContainer) {
         super(workerName, workerPort, masterName, workingDir, installDir, appDir, classpathFromFile, pythonpathFromFile,
             libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks, hostId);
+
         scriptName = installDir + (installDir.endsWith(File.separator) ? "" : File.separator) + SCRIPT_PATH
             + STARTER_SCRIPT_NAME;
+        if (isContainer) {
+            this.appDir = "/compss";
+            if ("python".equals(this.lang.toLowerCase())) {
+                this.workerPythonpath += LIB_SEPARATOR + appDir;
+            } else if ("java".equals(this.lang.toLowerCase())) {
+                String[] paths = CLASSPATH_FROM_ENVIRONMENT.split(LIB_SEPARATOR);
+                String jarName = paths[1].split("/")[paths[1].split("/").length - 1];
+                this.workerClasspath += LIB_SEPARATOR + appDir + LIB_SEPARATOR + appDir + "/" + jarName;
+            }
+        }
     }
 
     @Override
     public String[] getStartCommand() throws Exception {
-
         /*
          * ************************************************************************************************************
          * BUILD COMMAND
@@ -159,11 +169,6 @@ public class NIOStarterCommand extends WorkerStarterCommand {
     @Override
     public void setScriptName(String scriptName) {
         this.scriptName = scriptName;
-    }
-
-    @Override
-    public String getWorkingDirectory() {
-        return this.workingDir;
     }
 
 }

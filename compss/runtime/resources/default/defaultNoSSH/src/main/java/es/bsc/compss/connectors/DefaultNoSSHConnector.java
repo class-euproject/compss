@@ -129,16 +129,13 @@ public class DefaultNoSSHConnector extends AbstractConnector {
     @Override
     public Object create(String name, CloudMethodResourceDescription cmrd, int replicas) throws ConnectorException {
         LOGGER.debug("Create connection " + name);
-        System.out.println("DefaultNoSSHConnector::create");
-        StarterCommand starterCMD = getStarterCommand(name, cmrd, true);
-        return this.connector.create(name, Converter.getHardwareDescription(cmrd),
-            Converter.getSoftwareDescription(cmrd), cmrd.getImage().getProperties(), starterCMD, replicas);
+        return this.connector.create(name, cmrd.getImage().getConfig(), Converter.getHardwareDescription(cmrd),
+            Converter.getSoftwareDescription(cmrd), cmrd.getImage().getProperties(), replicas, true);
     }
 
     @Override
     public List<CloudMethodResourceDescription> waitUntilCreation(Object id, CloudMethodResourceDescription requested)
         throws ConnectorException {
-        System.out.println("DefaultNoSSHConnector::waitUntilCreation");
         LOGGER.debug("Waiting for " + id);
         return this.connector.waitUntilCreation(id).stream()
             .map(vr -> Converter.toCloudMethodResourceDescription(vr, requested))

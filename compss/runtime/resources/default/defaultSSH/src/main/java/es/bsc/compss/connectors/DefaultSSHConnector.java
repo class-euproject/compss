@@ -126,9 +126,8 @@ public class DefaultSSHConnector extends AbstractSSHConnector {
     @Override
     public Object create(String name, CloudMethodResourceDescription cmrd, int replicas) throws ConnectorException {
         LOGGER.debug("Create connection " + name);
-        StarterCommand starterCMD = getStarterCommand(name, cmrd, false);
-        return this.connector.create(name, Converter.getHardwareDescription(cmrd),
-            Converter.getSoftwareDescription(cmrd), cmrd.getImage().getProperties(), starterCMD, replicas);
+        return this.connector.create(name, cmrd.getImage().getConfig(), Converter.getHardwareDescription(cmrd),
+            Converter.getSoftwareDescription(cmrd), cmrd.getImage().getProperties(), replicas, false);
 
     }
 

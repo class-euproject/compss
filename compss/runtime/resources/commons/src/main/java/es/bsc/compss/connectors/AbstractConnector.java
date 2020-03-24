@@ -135,7 +135,6 @@ public abstract class AbstractConnector implements Connector, Operations, Cost {
      */
     @Override
     public boolean turnON(String name, ResourceCreationRequest rR) {
-        System.out.println("AbstractConnector::turnON");
         if (this.terminate) {
             return false;
         }
@@ -250,7 +249,6 @@ public abstract class AbstractConnector implements Connector, Operations, Cost {
     @Override
     public Object poweron(String name, CloudMethodResourceDescription rd, int replicas) throws ConnectorException {
         long requestTime = System.currentTimeMillis();
-        System.out.println("AbstractConnector::poweron");
         Object vmId = create(name, rd, replicas);
         this.powerOnVMTimestamp.put(vmId, new Long(requestTime));
         return vmId;
@@ -269,7 +267,6 @@ public abstract class AbstractConnector implements Connector, Operations, Cost {
 
     @Override
     public List<VM> waitCreation(Object envId, CloudMethodResourceDescription requested) throws ConnectorException {
-        System.out.println("AbstractConnector:waitCreation");
         List<CloudMethodResourceDescription> granted = waitUntilCreation(envId, requested);
         Long removeTime = powerOnVMTimestamp.remove(envId);
         List<VM> vms = granted.stream().map(g -> {
@@ -434,7 +431,9 @@ public abstract class AbstractConnector implements Connector, Operations, Cost {
         String adaptorName = cid.getAdaptorName();
         Integer workerPort = cid.getMinPort();
         String masterName = System.getProperty(COMPSsConstants.MASTER_NAME);
-        String workingDir = cid.getSandboxWorkingDir();
+        // String workingDir = cid.getSandboxWorkingDir();
+        String[] workingDirTree = cid.getSandboxWorkingDir().split("/");
+        String workingDir = cid.getSandboxWorkingDir().replace(workingDirTree[workingDirTree.length - 1], name);
         String installDir = cid.getInstallDir();
         String appDir = cid.getAppDir();
         String classPathFromFile = cid.getClasspath();
@@ -444,7 +443,6 @@ public abstract class AbstractConnector implements Connector, Operations, Cost {
         int totalGPU = cid.getTotalGPUComputingUnits();
         int totalFPGA = cid.getTotalFPGAComputingUnits();
         int limitOfTasks = cid.getLimitOfTasks();
-        String hostId = "NoTracinghostID";
         return Comm.getStarterCommand(adaptorName, name, workerPort, masterName, workingDir, installDir, appDir,
             classPathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks,
             "NoTracingHostID", container);
