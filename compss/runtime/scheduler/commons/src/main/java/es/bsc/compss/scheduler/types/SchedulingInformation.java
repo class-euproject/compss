@@ -69,7 +69,8 @@ public class SchedulingInformation {
         // Add the new description of the worker
         List<Integer> executableCores = ui.getExecutableCores();
         for (int coreId : executableCores) {
-            CORE_TO_WORKERS.get(coreId).add(ui);
+            List<ResourceScheduler<? extends WorkerResourceDescription>> workersList = CORE_TO_WORKERS.get(coreId);
+            workersList.add(ui);
         }
     }
 

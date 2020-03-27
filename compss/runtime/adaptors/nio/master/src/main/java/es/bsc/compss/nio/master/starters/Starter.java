@@ -136,7 +136,6 @@ public abstract class Starter {
         int tries = 50;
         CommandCheckWorker cmd = new CommandCheckWorker(DEPLOYMENT_ID, name);
         do {
-
             if (DEBUG) {
                 LOGGER.debug("[WorkerStarter] Sending check command to worker " + name);
             }
@@ -149,12 +148,12 @@ public abstract class Starter {
 
             // Sleep before next iteration
             try {
-                LOGGER.debug("[WorkerStarter] Waiting to send next check worker command with delay " + 300);
+                LOGGER.debug("[WorkerStarter] Waiting to send next check worker command with delay " + delay);
                 Thread.sleep(delay);
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
             }
-            delay = 300 + ((50 - tries) / 10) * 100;
+            delay = 300 + (50 - tries) * 50;
         } while (!this.workerIsReady && --tries > 0 && !this.toStop);
     }
 

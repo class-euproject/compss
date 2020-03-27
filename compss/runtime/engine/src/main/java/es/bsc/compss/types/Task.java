@@ -52,9 +52,6 @@ public class Task extends AbstractTask {
     // Task Monitor
     private final TaskMonitor taskMonitor;
 
-    // On failure behavior
-    private final OnFailure onFailure;
-
     // Commutative groups of the task
     private TreeMap<Integer, CommutativeGroupTask> commutativeGroup;
 
@@ -81,14 +78,13 @@ public class Task extends AbstractTask {
      */
     public Task(Long appId, Lang lang, String signature, boolean isPrioritary, int numNodes, boolean isReplicated,
         boolean isDistributed, boolean hasTarget, int numReturns, List<Parameter> parameters, TaskMonitor monitor,
-        OnFailure onFailure, int timeOut) {
+        OnFailure onFailure, long timeOut) {
 
         super(appId);
         CoreElement core = CoreManager.getCore(signature);
         this.taskDescription = new TaskDescription(TaskType.METHOD, lang, signature, core, isPrioritary, numNodes,
-            isReplicated, isDistributed, hasTarget, numReturns, timeOut, parameters);
+            isReplicated, isDistributed, hasTarget, numReturns, onFailure, timeOut, parameters);
         this.taskMonitor = monitor;
-        this.onFailure = onFailure;
         this.commutativeGroup = new TreeMap<>();
         this.taskGroups = new LinkedList<>();
     }
@@ -111,7 +107,7 @@ public class Task extends AbstractTask {
      */
     public Task(Long appId, String namespace, String service, String port, String operation, boolean isPrioritary,
         boolean hasTarget, int numReturns, List<Parameter> parameters, TaskMonitor monitor, OnFailure onFailure,
-        int timeOut) {
+        long timeOut) {
 
         super(appId);
         String signature =
@@ -123,9 +119,8 @@ public class Task extends AbstractTask {
         boolean isDistributed = Boolean.parseBoolean(Constants.IS_NOT_DISTRIBUTED_TASK);
 
         this.taskDescription = new TaskDescription(TaskType.SERVICE, Lang.UNKNOWN, signature, core, isPrioritary,
-            numNodes, isReplicated, isDistributed, hasTarget, numReturns, timeOut, parameters);
+            numNodes, isReplicated, isDistributed, hasTarget, numReturns, onFailure, timeOut, parameters);
         this.taskMonitor = monitor;
-        this.onFailure = onFailure;
         this.commutativeGroup = new TreeMap<>();
         this.taskGroups = new LinkedList<>();
     }
@@ -381,7 +376,7 @@ public class Task extends AbstractTask {
      * @return The on-failure mechanisms.
      */
     public OnFailure getOnFailure() {
-        return this.onFailure;
+        return this.taskDescription.getOnFailure();
     }
 
     @Override

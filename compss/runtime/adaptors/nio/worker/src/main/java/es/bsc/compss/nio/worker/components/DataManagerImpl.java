@@ -39,14 +39,15 @@ import es.bsc.distrostreamlib.server.types.StreamBackend;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Set;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -252,43 +253,38 @@ public class DataManagerImpl implements DataManager {
     private DataRegister getOriginalDataRegister(InvocationParam param) {
         String originalRename = param.getSourceDataId();
         DataRegister originalRegister;
-        boolean newRegister = false;
         synchronized (registry) {
             originalRegister = this.registry.get(originalRename);
             if (originalRegister == null) {
                 originalRegister = new DataRegister();
                 this.registry.put(originalRename, originalRegister);
-                newRegister = true;
             }
         }
 
-        if (newRegister) {
-            WORKER_LOGGER.debug("New data register created for " + originalRename);
-            synchronized (originalRegister) {
-                for (InvocationParamURI loc : param.getSources()) {
-                    switch (loc.getProtocol()) {
-                        case FILE_URI:
-                            if (loc.isHost(this.hostName)) {
-                                originalRegister.addFileLocation(loc.getPath());
-                            }
-                            break;
-                        case PERSISTENT_URI:
-                            String pscoId = loc.getPath();
-                            originalRegister.setStorageId(pscoId);
-                            break;
-                        case OBJECT_URI:
-                        case BINDING_URI:
-                            if (loc.isHost(this.hostName)) {
-                                WORKER_LOGGER.error("WORKER IS NOT AWARE OF THE PRESENCE OF A"
-                                    + (loc.getProtocol() == ProtocolType.OBJECT_URI ? "N OBJECT "
-                                        : " BINDING OBJECT "));
-                            }
-                            break;
-                        case SHARED_URI:
-                            break;
+        WORKER_LOGGER.debug("Checking locations for " + originalRename);
+        synchronized (originalRegister) {
+            for (InvocationParamURI loc : param.getSources()) {
+                switch (loc.getProtocol()) {
+                    case FILE_URI:
+                        if (loc.isHost(this.hostName)) {
+                            originalRegister.addFileLocation(loc.getPath());
+                        }
+                        break;
+                    case PERSISTENT_URI:
+                        String pscoId = loc.getPath();
+                        originalRegister.setStorageId(pscoId);
+                        break;
+                    case OBJECT_URI:
+                    case BINDING_URI:
+                        if (loc.isHost(this.hostName)) {
+                            WORKER_LOGGER.error("WORKER IS NOT AWARE OF THE PRESENCE OF A"
+                                + (loc.getProtocol() == ProtocolType.OBJECT_URI ? "N OBJECT " : " BINDING OBJECT "));
+                        }
+                        break;
+                    case SHARED_URI:
+                        break;
 
-                        default:
-                    }
+                    default:
                 }
             }
         }
@@ -298,8 +294,6 @@ public class DataManagerImpl implements DataManager {
 
     private void fetchCollection(InvocationParam param, int index, FetchDataListener listener) {
         try {
-            String pathToWrite = (String) param.getValue();
-            PrintWriter writer = new PrintWriter(pathToWrite, "UTF-8");
             NIOParamCollection npc = (NIOParamCollection) param;
             List<NIOParam> elements = npc.getCollectionParameters();
             WORKER_LOGGER.info("Checking NIOParamCollection (received " + elements.size() + " params)");
@@ -309,10 +303,8 @@ public class DataManagerImpl implements DataManager {
             for (NIOParam subNioParam : npc.getCollectionParameters()) {
                 cfol.addOperation();
                 fetchParam(subNioParam, subIndex, cfol);
-                writer.println(subNioParam.getType().ordinal() + " " + subNioParam.getValue());
                 subIndex++;
             }
-            writer.close();
             cfol.enable();
         } catch (Exception e) {
             listener.errorFetchingValue(param.getDataMgmtId(), e);
@@ -538,6 +530,7 @@ public class DataManagerImpl implements DataManager {
     private void fetchFile(InvocationParam param, int index, FetchDataListener tt) {
         WORKER_LOGGER.debug("   - " + (String) param.getValue() + " registered as file.");
         final String originalName = param.getSourceDataId();
+        final String finalName = param.getDataMgmtId();
         final String expectedFileLocation = param.getValue().toString();
         WORKER_LOGGER.debug("   - Checking if file " + (String) param.getValue() + " is being transferred.");
         if (provider.isTransferingData(param)) {
@@ -553,41 +546,55 @@ public class DataManagerImpl implements DataManager {
                 WORKER_LOGGER.debug("   - Parameter " + index + "(" + expectedFileLocation + ") found at host.");
 
                 Path tgtPath = Paths.get(expectedFileLocation);
-                List<String> files = originalRegister.getFileLocations();
-                for (String path : files) {
-                    if (!expectedFileLocation.equals(path)) {
-                        Path srcPath = Paths.get(path);
-                        try {
-                            if (WORKER_LOGGER_DEBUG) {
-                                WORKER_LOGGER.debug("   - Parameter " + index + "(" + expectedFileLocation + ") "
-                                    + (param.isPreserveSourceData() ? "preserves sources. COPYING"
-                                        : "erases sources. MOVING"));
-                                WORKER_LOGGER.debug("         Source: " + srcPath);// source);
-                                WORKER_LOGGER.debug("         Target: " + tgtPath);// target);
-                            }
-
-                            if (param.isPreserveSourceData()) {
-                                Files.copy(srcPath, tgtPath);
-                            } else {
-                                try {
-                                    Files.move(srcPath, tgtPath, StandardCopyOption.ATOMIC_MOVE);
-                                } catch (AtomicMoveNotSupportedException amnse) {
-                                    WORKER_LOGGER.warn("WARN: AtomicMoveNotSupportedException."
-                                        + " File cannot be atomically moved. Trying to move without atomic");
-                                    Files.move(srcPath, tgtPath);
+                Set<String> files = originalRegister.getFileLocations();
+                if (files.contains(expectedFileLocation)) {
+                    fetchedLocalParameter(param, index, tt);
+                    return;
+                } else {
+                    for (String path : files) {
+                        if (!expectedFileLocation.equals(path)) {
+                            Path srcPath = Paths.get(path);
+                            try {
+                                if (WORKER_LOGGER_DEBUG) {
+                                    WORKER_LOGGER.debug("   - Parameter " + index + "(" + expectedFileLocation + ") "
+                                        + (param.isPreserveSourceData() ? "preserves sources. COPYING"
+                                            : "erases sources. MOVING"));
+                                    WORKER_LOGGER.debug("         Source: " + srcPath);// source);
+                                    WORKER_LOGGER.debug("         Target: " + tgtPath);// target);
                                 }
-                                originalRegister.removeFileLocation(path);
+
+                                if (param.isPreserveSourceData()) {
+                                    Files.copy(srcPath, tgtPath);
+                                } else {
+                                    try {
+                                        Files.move(srcPath, tgtPath, StandardCopyOption.ATOMIC_MOVE);
+                                    } catch (AtomicMoveNotSupportedException amnse) {
+                                        WORKER_LOGGER.warn("WARN: AtomicMoveNotSupportedException."
+                                            + " File cannot be atomically moved. Trying to move without atomic");
+                                        Files.move(srcPath, tgtPath);
+                                    }
+                                    originalRegister.removeFileLocation(path);
+                                }
+                                DataRegister dr = new DataRegister();
+                                dr.addFileLocation(tgtPath.toString());
+                                registry.put(finalName, dr);
+                                fetchedLocalParameter(param, index, tt);
+                                return;
+                            } catch (FileAlreadyExistsException e) {
+                                WORKER_LOGGER
+                                    .warn("WARN: File " + expectedFileLocation + " already exists avoiding copy");
+                                WORKER_LOGGER.warn(" Registered locations for " + originalName + " :");
+                                for (String file : files) {
+                                    WORKER_LOGGER.warn(" * " + file);
+                                }
+                                fetchedLocalParameter(param, index, tt);
+                                return;
+                            } catch (IOException ioe) {
+                                WORKER_LOGGER.error("IOException", ioe);
                             }
-                            DataRegister dr = new DataRegister();
-                            dr.addFileLocation(path);
-                            registry.put(originalName, dr);
+                        } else {
                             fetchedLocalParameter(param, index, tt);
-                            return;
-                        } catch (IOException ioe) {
-                            WORKER_LOGGER.error("IOException", ioe);
                         }
-                    } else {
-                        fetchedLocalParameter(param, index, tt);
                     }
                 }
             } else {

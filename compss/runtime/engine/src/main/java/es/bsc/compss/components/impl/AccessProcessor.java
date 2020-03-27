@@ -25,7 +25,6 @@ import es.bsc.compss.log.Loggers;
 import es.bsc.compss.types.AbstractTask;
 import es.bsc.compss.types.BindingObject;
 import es.bsc.compss.types.Task;
-import es.bsc.compss.types.TaskGroup;
 import es.bsc.compss.types.annotations.parameter.OnFailure;
 import es.bsc.compss.types.data.DataAccessId;
 import es.bsc.compss.types.data.DataInstanceId;
@@ -46,6 +45,7 @@ import es.bsc.compss.types.request.ap.APRequest;
 import es.bsc.compss.types.request.ap.AlreadyAccessedRequest;
 import es.bsc.compss.types.request.ap.BarrierGroupRequest;
 import es.bsc.compss.types.request.ap.BarrierRequest;
+import es.bsc.compss.types.request.ap.CancelApplicationTasksRequest;
 import es.bsc.compss.types.request.ap.CloseTaskGroupRequest;
 import es.bsc.compss.types.request.ap.DeleteBindingObjectRequest;
 import es.bsc.compss.types.request.ap.DeleteFileRequest;
@@ -213,12 +213,15 @@ public class AccessProcessor implements Runnable, TaskProducer {
      */
     public int newTask(Long appId, TaskMonitor monitor, Lang lang, String signature, boolean isPrioritary, int numNodes,
         boolean isReplicated, boolean isDistributed, boolean hasTarget, int numReturns, List<Parameter> parameters,
-        OnFailure onFailure, int timeOut) {
+        OnFailure onFailure, long timeOut) {
 
         Task currentTask = new Task(appId, lang, signature, isPrioritary, numNodes, isReplicated, isDistributed,
             hasTarget, numReturns, parameters, monitor, onFailure, timeOut);
+
         TaskMonitor registeredMonitor = currentTask.getTaskMonitor();
         registeredMonitor.onCreation();
+
+        LOGGER.debug("Requesting analysis of Task " + currentTask.getId());
         if (!this.requestQueue.offer(new TaskAnalysisRequest(currentTask))) {
             ErrorManager.error(ERROR_QUEUE_OFFER + "new method task");
         }
@@ -244,13 +247,14 @@ public class AccessProcessor implements Runnable, TaskProducer {
      */
     public int newTask(Long appId, TaskMonitor monitor, String namespace, String service, String port, String operation,
         boolean priority, boolean hasTarget, int numReturns, List<Parameter> parameters, OnFailure onFailure,
-        int timeOut) {
-
+        long timeOut) {
         Task currentTask = new Task(appId, namespace, service, port, operation, priority, hasTarget, numReturns,
             parameters, monitor, onFailure, timeOut);
 
         TaskMonitor registeredMonitor = currentTask.getTaskMonitor();
         registeredMonitor.onCreation();
+
+        LOGGER.debug("Requesting analysis of new service Task " + currentTask.getId());
         if (!this.requestQueue.offer(new TaskAnalysisRequest(currentTask))) {
             ErrorManager.error(ERROR_QUEUE_OFFER + "new service task");
         }
@@ -616,18 +620,37 @@ public class AccessProcessor implements Runnable, TaskProducer {
      */
     public void barrierGroup(Long appId, String groupName) throws COMPSsException {
         Semaphore sem = new Semaphore(0);
-        if (!requestQueue.offer(new BarrierGroupRequest(appId, groupName, sem))) {
+        BarrierGroupRequest request = new BarrierGroupRequest(appId, groupName, sem);
+        if (!requestQueue.offer(request)) {
             ErrorManager.error(ERROR_QUEUE_OFFER + "wait for all tasks");
         }
         // Wait for response
         sem.acquireUninterruptibly();
 
-        TaskGroup tg = taskAnalyser.getTaskGroup(groupName);
-        if (tg != null && tg.hasException()) {
-            throw new COMPSsException("Group " + groupName + " raised a COMPSs Exception");
+        if (request.getException() != null) {
+            LOGGER.debug("The thrown exception message is: " + request.getException().getMessage());
+            throw new COMPSsException(
+                "Group " + groupName + " raised a COMPSs Exception ( " + request.getException().getMessage() + ")");
         }
 
         LOGGER.info("Group barrier: End of tasks of group " + groupName);
+    }
+
+    /**
+     * Cancellation of all tasks of an application.
+     */
+    public void cancelApplicationTasks(Long appId) {
+        LOGGER.info("Cancelled all remaining tasks for application with id " + appId);
+
+        Semaphore sem = new Semaphore(0);
+        if (!this.requestQueue.offer(new CancelApplicationTasksRequest(appId, sem))) {
+            ErrorManager.error(ERROR_QUEUE_OFFER + "wait for task");
+        }
+        // Wait for response
+        LOGGER.debug("Waiting for finishing tasks cancellation " + appId);
+        sem.acquireUninterruptibly();
+
+        LOGGER.info("Tasks cancelled for application with id " + appId);
     }
 
     /**
@@ -719,8 +742,8 @@ public class AccessProcessor implements Runnable, TaskProducer {
      * 
      * @param groupName Name of the task group
      */
-    public void setCurrentTaskGroup(String groupName, boolean implicitBarrier) {
-        OpenTaskGroupRequest request = new OpenTaskGroupRequest(groupName, implicitBarrier);
+    public void setCurrentTaskGroup(String groupName, boolean implicitBarrier, Long appId) {
+        OpenTaskGroupRequest request = new OpenTaskGroupRequest(groupName, implicitBarrier, appId);
         if (!requestQueue.offer(request)) {
             ErrorManager.error(ERROR_QUEUE_OFFER + "new task group");
         }
@@ -729,8 +752,8 @@ public class AccessProcessor implements Runnable, TaskProducer {
     /**
      * Closes the current task group.
      */
-    public void closeCurrentTaskGroup() {
-        CloseTaskGroupRequest request = new CloseTaskGroupRequest();
+    public void closeCurrentTaskGroup(Long appId) {
+        CloseTaskGroupRequest request = new CloseTaskGroupRequest(appId);
         if (!requestQueue.offer(request)) {
             ErrorManager.error(ERROR_QUEUE_OFFER + "closure of task group");
         }
@@ -803,29 +826,31 @@ public class AccessProcessor implements Runnable, TaskProducer {
      *
      * @param loc Location to delete.
      */
-    public void markForDeletion(DataLocation loc) {
+    public void markForDeletion(DataLocation loc, boolean enableReuse) {
         LOGGER.debug("Marking data " + loc + " for deletion");
         Semaphore sem = new Semaphore(0);
         Semaphore semWait = new Semaphore(0);
+        // No need to wait if data is noReuse
+        if (enableReuse) {
+            WaitForDataReadyToDeleteRequest request = new WaitForDataReadyToDeleteRequest(loc, sem, semWait);
+            // Wait for data to be ready for deletion
+            if (!this.requestQueue.offer(request)) {
+                ErrorManager.error(ERROR_QUEUE_OFFER + "wait for data ready to delete");
+            }
 
-        WaitForDataReadyToDeleteRequest request = new WaitForDataReadyToDeleteRequest(loc, sem, semWait);
-        // Wait for data to be ready for deletion
-        if (!this.requestQueue.offer(request)) {
-            ErrorManager.error(ERROR_QUEUE_OFFER + "wait for data ready to delete");
+            // Wait for response
+            LOGGER.debug("Waiting for ready to delete request response...");
+            sem.acquireUninterruptibly();
+
+            int nPermits = request.getNumPermits();
+            if (nPermits > 0) {
+                LOGGER.debug("Waiting for " + nPermits + " tasks to finish...");
+                semWait.acquireUninterruptibly(nPermits);
+            }
         }
-
-        // Wait for response
-        LOGGER.debug("Waiting for ready to delete request response...");
-        sem.acquireUninterruptibly();
-
-        int nPermits = request.getNumPermits();
-        if (nPermits > 0) {
-            LOGGER.debug("Waiting for " + nPermits + " tasks to finish...");
-            semWait.acquireUninterruptibly(nPermits);
-        }
-
         // Request to delete data
-        if (!this.requestQueue.offer(new DeleteFileRequest(loc, sem))) {
+        LOGGER.debug("Sending delete request response for " + loc);
+        if (!this.requestQueue.offer(new DeleteFileRequest(loc, sem, !enableReuse))) {
             ErrorManager.error(ERROR_QUEUE_OFFER + "mark for deletion");
         }
 

@@ -49,8 +49,9 @@ public class DependencyParameter extends Parameter implements Transferable {
      * @param prefix Parameter prefix.
      * @param name Parameter name.
      */
-    public DependencyParameter(DataType type, Direction direction, StdIOStream stream, String prefix, String name) {
-        super(type, direction, stream, prefix, name);
+    public DependencyParameter(DataType type, Direction direction, StdIOStream stream, String prefix, String name,
+        String contentType) {
+        super(type, direction, stream, prefix, name, contentType);
     }
 
     /**
@@ -98,6 +99,20 @@ public class DependencyParameter extends Parameter implements Transferable {
     @Override
     public void setDataTarget(String target) {
         this.dataTarget = target;
+    }
+
+    /**
+     * Return the corresponding data target value for this type of dependency parameter.
+     * 
+     * @param tgtName Proposed target name
+     * @return data target name
+     */
+    public String generateDataTargetName(String tgtName) {
+        if (getType().equals(DataType.PSCO_T) || getType().equals(DataType.EXTERNAL_PSCO_T)) {
+            return getDataTarget();
+        } else {
+            return tgtName;
+        }
     }
 
     @Override

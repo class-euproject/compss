@@ -7,6 +7,10 @@
         <Memory>
         	<Size>4.0</Size>
         </Memory>
+        <Storage>
+           <Size>10</Size>
+           <Bandwidth>200</Bandwidth>
+        </Storage>
         <Adaptors>
             <Adaptor Name="es.bsc.compss.nio.master.NIOAdaptor">
                 <SubmissionSystem>

@@ -54,7 +54,6 @@ import es.bsc.compss.types.job.JobHistory;
 import es.bsc.compss.types.job.JobStatusListener;
 import es.bsc.compss.types.parameter.CollectionParameter;
 import es.bsc.compss.types.parameter.DependencyParameter;
-import es.bsc.compss.types.parameter.ExternalPSCOParameter;
 import es.bsc.compss.types.parameter.Parameter;
 import es.bsc.compss.types.resources.Worker;
 import es.bsc.compss.types.resources.WorkerResourceDescription;
@@ -64,6 +63,7 @@ import es.bsc.compss.util.JobDispatcher;
 import es.bsc.compss.worker.COMPSsException;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -89,6 +89,8 @@ public class ExecutionAction extends AllocatableAction {
     private final LinkedList<Integer> jobs;
     private int transferErrors = 0;
     protected int executionErrors = 0;
+    private Job<?> currentJob;
+    boolean cancelledBeforeSubmit = false;
 
 
     /**
@@ -188,10 +190,10 @@ public class ExecutionAction extends AllocatableAction {
 
     @Override
     protected void doAction() {
-        JOB_LOGGER.info("Ordering transfers to " + getAssignedResource() + " to run task: " + task.getId());
-        transferErrors = 0;
-        executionErrors = 0;
-        TaskMonitor monitor = task.getTaskMonitor();
+        JOB_LOGGER.info("Ordering transfers to " + getAssignedResource() + " to run task: " + this.task.getId());
+        this.transferErrors = 0;
+        this.executionErrors = 0;
+        TaskMonitor monitor = this.task.getTaskMonitor();
         monitor.onSubmission();
         doInputTransfers();
         for (CommutativeGroupTask com : this.getTask().getCommutativeGroupList()) {
@@ -201,7 +203,7 @@ public class ExecutionAction extends AllocatableAction {
 
     @Override
     public boolean taskIsReadyForExecution() {
-        return task.canBeExecuted();
+        return this.task.canBeExecuted();
     }
 
     @Override
@@ -221,7 +223,7 @@ public class ExecutionAction extends AllocatableAction {
     }
 
     private void transferInputData(JobTransfersListener listener) {
-        TaskDescription taskDescription = task.getTaskDescription();
+        TaskDescription taskDescription = this.task.getTaskDescription();
         for (Parameter p : taskDescription.getParameters()) {
             if (DEBUG) {
                 JOB_LOGGER.debug("    * " + p);
@@ -274,20 +276,21 @@ public class ExecutionAction extends AllocatableAction {
         DataAccessId access = param.getDataAccessId();
 
         if (access instanceof WAccessId) {
-            // Write access, fill information for the worker to generate the output data
-            String tgtName = ((WAccessId) access).getWrittenDataInstance().getRenaming();
+            /*
+             * String tgtName = ((WAccessId) access).getWrittenDataInstance().getRenaming();
+             * 
+             * // Workaround for return objects in bindings converted to PSCOs inside tasks DataType type =
+             * param.getType(); if (type.equals(DataType.EXTERNAL_PSCO_T)) { ExternalPSCOParameter epp =
+             * (ExternalPSCOParameter) param; tgtName = epp.getId(); } if (DEBUG) {
+             * JOB_LOGGER.debug("Setting data target job transfer: " + w.getCompleteRemotePath(type, tgtName)); }
+             * JOB_LOGGER.debug("Setting data target job transfer: " + w.getCompleteRemotePath(type, tgtName));
+             * param.setDataTarget(w.getCompleteRemotePath(param.getType(), tgtName).getPath());
+             */
 
-            // Workaround for return objects in bindings converted to PSCOs inside tasks
-            DataType type = param.getType();
-            if (type.equals(DataType.EXTERNAL_PSCO_T)) {
-                ExternalPSCOParameter epp = (ExternalPSCOParameter) param;
-                tgtName = epp.getId();
-            }
-            if (DEBUG) {
-                JOB_LOGGER.debug("Setting data target job transfer: " + w.getCompleteRemotePath(type, tgtName));
-            }
-            JOB_LOGGER.debug("Setting data target job transfer: " + w.getCompleteRemotePath(type, tgtName));
-            param.setDataTarget(w.getCompleteRemotePath(param.getType(), tgtName).getPath());
+            String dataTarget =
+                w.getOutputDataTargetPath(((WAccessId) access).getWrittenDataInstance().getRenaming(), param);
+            param.setDataTarget(dataTarget);
+
         } else {
             if (access instanceof RAccessId) {
                 // Read Access, transfer object
@@ -301,7 +304,8 @@ public class ExecutionAction extends AllocatableAction {
 
                 String srcName = ((RWAccessId) access).getReadDataInstance().getRenaming();
                 String tgtName = ((RWAccessId) access).getWrittenDataInstance().getRenaming();
-                w.getData(srcName, tgtName, (LogicalData) null, param, listener);
+                LogicalData tmpData = Comm.registerData("tmp" + tgtName);
+                w.getData(srcName, tgtName, tmpData, param, listener);
             }
         }
     }
@@ -346,14 +350,15 @@ public class ExecutionAction extends AllocatableAction {
      * @param failedtransfers Number of failed transfers.
      */
     public final void failedTransfers(int failedtransfers) {
-        JOB_LOGGER.debug("Received a notification for the transfers for task " + task.getId() + " with state FAILED");
+        JOB_LOGGER
+            .debug("Received a notification for the transfers for task " + this.task.getId() + " with state FAILED");
         ++transferErrors;
-        if (transferErrors < TRANSFER_CHANCES && task.getOnFailure() == OnFailure.RETRY) {
-            JOB_LOGGER.debug("Resubmitting input files for task " + task.getId() + " to host "
+        if (transferErrors < TRANSFER_CHANCES && this.task.getOnFailure() == OnFailure.RETRY) {
+            JOB_LOGGER.debug("Resubmitting input files for task " + this.task.getId() + " to host "
                 + getAssignedResource().getName() + " since " + failedtransfers + " transfers failed.");
             doInputTransfers();
         } else {
-            ErrorManager.warn("Transfers for running task " + task.getId() + " on worker "
+            ErrorManager.warn("Transfers for running task " + this.task.getId() + " on worker "
                 + getAssignedResource().getName() + " have failed.");
             this.notifyError();
         }
@@ -365,20 +370,23 @@ public class ExecutionAction extends AllocatableAction {
      * @param transferGroupId Transferring group Id.
      */
     public final void doSubmit(int transferGroupId) {
-        JOB_LOGGER.debug("Received a notification for the transfers of task " + task.getId() + " with state DONE");
+        JOB_LOGGER.debug("Received a notification for the transfers of task " + this.task.getId() + " with state DONE");
 
         JobStatusListener listener = new JobStatusListener(this);
         Job<?> job = submitJob(transferGroupId, listener);
+        if (!cancelledBeforeSubmit) {
+            // Register job
+            this.jobs.add(job.getJobId());
+            JOB_LOGGER.info((this.getExecutingResources().size() > 1 ? "Rescheduled" : "New") + " Job " + job.getJobId()
+                + " (Task: " + this.task.getId() + ")");
+            JOB_LOGGER.info("  * Method name: " + this.task.getTaskDescription().getName());
+            JOB_LOGGER.info("  * Target host: " + this.getAssignedResource().getName());
 
-        // Register job
-        this.jobs.add(job.getJobId());
-        JOB_LOGGER.info((this.getExecutingResources().size() > 1 ? "Rescheduled" : "New") + " Job " + job.getJobId()
-            + " (Task: " + task.getId() + ")");
-        JOB_LOGGER.info("  * Method name: " + task.getTaskDescription().getName());
-        JOB_LOGGER.info("  * Target host: " + this.getAssignedResource().getName());
-
-        this.profile.start();
-        JobDispatcher.dispatch(job);
+            this.profile.start();
+            JobDispatcher.dispatch(job);
+        } else {
+            JOB_LOGGER.info("Job" + job.getJobId() + " cancelled before submission.");
+        }
     }
 
     protected Job<?> submitJob(int transferGroupId, JobStatusListener listener) {
@@ -390,10 +398,31 @@ public class ExecutionAction extends AllocatableAction {
         List<String> slaveNames = new ArrayList<>(); // No salves
         Job<?> job = w.newJob(this.task.getId(), this.task.getTaskDescription(), this.getAssignedImplementation(),
             slaveNames, listener);
+        this.currentJob = job;
         job.setTransferGroupId(transferGroupId);
         job.setHistory(JobHistory.NEW);
 
         return job;
+    }
+
+    /**
+     * Code executed to cancel a running execution.
+     * 
+     * @throws Exception Unstarted node exception.
+     */
+    @Override
+    protected void stopAction() throws Exception {
+        // Submit stop petition
+        if (DEBUG) {
+            LOGGER.debug("Task " + this.task.getId() + " starts cancelling running job");
+        }
+        if (this.currentJob != null) {
+            this.currentJob.cancelJob();
+            // Update info about the generated/updated data
+            doOutputTransfers(this.currentJob);
+        } else {
+            this.cancelledBeforeSubmit = true;
+        }
     }
 
     /**
@@ -427,26 +456,32 @@ public class ExecutionAction extends AllocatableAction {
      */
     public final void failedJob(Job<?> job, JobEndStatus endStatus) {
         this.profile.end();
+        if (this.isCancelling()) {
+            JOB_LOGGER.debug("Received a notification for cancelled job " + job.getJobId());
+            doOutputTransfers(job);
 
-        int jobId = job.getJobId();
-        JOB_LOGGER.error("Received a notification for job " + jobId + " with state FAILED");
-
-        ++this.executionErrors;
-        if (this.transferErrors + this.executionErrors < SUBMISSION_CHANCES
-            && this.task.getOnFailure() == OnFailure.RETRY) {
-            JOB_LOGGER.error("Job " + job.getJobId() + " for running task " + this.task.getId() + " on worker "
-                + this.getAssignedResource().getName() + " has failed; resubmitting task to the same worker.");
-            ErrorManager.warn("Job " + job.getJobId() + " for running task " + this.task.getId() + " on worker "
-                + this.getAssignedResource().getName() + " has failed; resubmitting task to the same worker.");
-            job.setHistory(JobHistory.RESUBMITTED);
-            this.profile.start();
-            JobDispatcher.dispatch(job);
-        } else {
-            if (this.task.getOnFailure() == OnFailure.IGNORE) {
-                // Update info about the generated/updated data
-                doOutputTransfers(job);
-            }
             notifyError();
+        } else {
+            int jobId = job.getJobId();
+            JOB_LOGGER.error("Received a notification for job " + jobId + " with state FAILED");
+
+            ++this.executionErrors;
+            if (this.transferErrors + this.executionErrors < SUBMISSION_CHANCES
+                && this.task.getOnFailure() == OnFailure.RETRY) {
+                JOB_LOGGER.error("Job " + job.getJobId() + " for running task " + this.task.getId() + " on worker "
+                    + this.getAssignedResource().getName() + " has failed; resubmitting task to the same worker.");
+                ErrorManager.warn("Job " + job.getJobId() + " for running task " + this.task.getId() + " on worker "
+                    + this.getAssignedResource().getName() + " has failed; resubmitting task to the same worker.");
+                job.setHistory(JobHistory.RESUBMITTED);
+                this.profile.start();
+                JobDispatcher.dispatch(job);
+            } else {
+                if (this.task.getOnFailure() == OnFailure.IGNORE) {
+                    // Update info about the generated/updated data
+                    doOutputTransfers(job);
+                }
+                notifyError();
+            }
         }
     }
 
@@ -518,6 +553,7 @@ public class ExecutionAction extends AllocatableAction {
                     break;
                 case INOUT:
                     dId = ((RWAccessId) dp.getDataAccessId()).getWrittenDataInstance();
+                    Comm.removeDataKeepingValue("tmp" + dId);
                     break;
             }
 
@@ -573,7 +609,24 @@ public class ExecutionAction extends AllocatableAction {
         // Request transfer
         DataLocation outLoc = null;
         try {
-            SimpleURI targetURI = new SimpleURI(targetProtocol + dp.getDataTarget());
+            String dataTarget;
+            if (dp.getType().equals(DataType.PSCO_T) || dp.getType().equals(DataType.EXTERNAL_PSCO_T)) {
+                /*
+                 * For some reason for PSCO, we can no reconstruct the output data target, but it is not important
+                 * because error in OUT/INOUT data for isReplicated do not affect PSCO_T data
+                 */
+                dataTarget = dp.getDataTarget();
+            } else {
+                /*
+                 * Change to reconstruct output data target path to support OUT and INOUT in isReplicated tasks
+                 */
+                dataTarget = w.getOutputDataTargetPath(dataName, dp);
+            }
+            if (DEBUG) {
+                JOB_LOGGER.debug("Proposed URI for storing output param: " + targetProtocol + dataTarget);
+            }
+            // SimpleURI targetURI = new SimpleURI(targetProtocol + dp.getDataTarget());
+            SimpleURI targetURI = new SimpleURI(targetProtocol + dataTarget);
             outLoc = DataLocation.createLocation(w, targetURI);
         } catch (Exception e) {
             ErrorManager.error(DataLocation.ERROR_INVALID_LOCATION + " " + dp.getDataTarget(), e);
@@ -719,14 +772,25 @@ public class ExecutionAction extends AllocatableAction {
     protected void doException(COMPSsException e) {
         LinkedList<TaskGroup> taskGroups = this.task.getTaskGroupList();
         for (TaskGroup group : taskGroups) {
-            group.setException((COMPSsException) e);
+            if (!group.getName().equals("App" + this.task.getAppId())) {
+                group.setException((COMPSsException) e);
+                for (Task t : group.getTasks()) {
+                    if (t.getId() != this.getTask().getId()) {
+                        for (AllocatableAction aa : t.getExecutions()) {
+                            if (aa != null && aa.isPending()) {
+                                addGroupMember(aa);
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         // Failed log message
         String taskName = this.task.getTaskDescription().getName();
         StringBuilder sb = new StringBuilder();
-        sb.append("COMPSs Exception raised : Task ").append(taskName)
-            .append(" has raised an exception. Successors will be cancelled.\n");
+        sb.append("COMPSs Exception raised : Task ").append(taskName).append(" has raised an exception with message ")
+            .append(e.getMessage()).append(". Members of the containing groups will be cancelled.\n");
         sb.append("\n");
         ErrorManager.warn(sb.toString());
 
@@ -814,6 +878,11 @@ public class ExecutionAction extends AllocatableAction {
     }
 
     @Override
+    public long getGroupPriority() {
+        return ACTION_SINGLE;
+    }
+
+    @Override
     public OnFailure getOnFailure() {
         return this.task.getOnFailure();
     }
@@ -824,6 +893,45 @@ public class ExecutionAction extends AllocatableAction {
         Score computedScore = targetWorker.generateResourceScore(this, this.task.getTaskDescription(), actionScore);
         // LOGGER.debug("Scheduling Score " + computedScore);
         return computedScore;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public final List<ResourceScheduler<?>> tryToSchedule(Score actionScore,
+        Set<ResourceScheduler<?>> availableResources) throws BlockedActionException, UnassignedActionException {
+        // COMPUTE RESOURCE CANDIDATES
+        List<ResourceScheduler<? extends WorkerResourceDescription>> candidates = new LinkedList<>();
+        List<ResourceScheduler<? extends WorkerResourceDescription>> uselessWorkers = new LinkedList<>();
+        if (this.isTargetResourceEnforced()) {
+            // The scheduling is forced to a given resource
+            candidates.add((ResourceScheduler<WorkerResourceDescription>) this.getEnforcedTargetResource());
+        } else if (this.isSchedulingConstrained()) {
+            // The scheduling is constrained by dependencies
+            for (AllocatableAction a : this.getConstrainingPredecessors()) {
+                candidates.add((ResourceScheduler<WorkerResourceDescription>) a.getAssignedResource());
+            }
+        } else {
+            // Free scheduling
+            List<ResourceScheduler<? extends WorkerResourceDescription>> compatibleCandidates = getCompatibleWorkers();
+            if (compatibleCandidates.size() == 0) {
+                throw new BlockedActionException();
+            }
+            for (ResourceScheduler<? extends WorkerResourceDescription> currentWorker : availableResources) {
+                if (currentWorker.getResource().canRunSomething()) {
+                    if (compatibleCandidates.contains(currentWorker)) {
+                        candidates.add(currentWorker);
+                    }
+                } else {
+                    uselessWorkers.add(currentWorker);
+                }
+            }
+            if (candidates.size() == 0) {
+                throw new UnassignedActionException();
+            }
+        }
+        Collections.shuffle(candidates);
+        schedule(actionScore, candidates);
+        return uselessWorkers;
     }
 
     @SuppressWarnings("unchecked")
@@ -982,7 +1090,6 @@ public class ExecutionAction extends AllocatableAction {
 
     @Override
     protected void treatDependencyFreeAction(List<AllocatableAction> freeTasks) {
-
         for (CommutativeGroupTask cgt : this.getTask().getCommutativeGroupList()) {
             for (Task t : cgt.getCommutativeTasks()) {
                 if (t.getStatus() == TaskState.TO_EXECUTE) {
@@ -997,4 +1104,5 @@ public class ExecutionAction extends AllocatableAction {
             }
         }
     }
+
 }

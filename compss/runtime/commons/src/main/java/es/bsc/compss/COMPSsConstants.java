@@ -99,6 +99,7 @@ public class COMPSsConstants {
     public static final String SCHEDULER = "compss.scheduler";
     public static final String SCHEDULER_CONFIG_FILE = "compss.scheduler.config";
     public static final String TRACING = "compss.tracing";
+    public static final String TRACE_LABEL = "compss.trace.label";
     public static final String EXTRAE_CONFIG_FILE = "compss.extrae.file";
     public static final String PRESCHED = "compss.presched";
     public static final String GRAPH = "compss.graph";
@@ -134,6 +135,9 @@ public class COMPSsConstants {
     public static final String STREAMING_BACKEND = "compss.streaming";
     public static final String STREAMING_MASTER_NAME = "compss.streaming.masterName";
     public static final String STREAMING_MASTER_PORT = "compss.streaming.masterPort";
+
+    // Timer properties
+    public static final String TIMER_COMPSS_NAME = "compss.timers";
 
     // Persistent worker c property
     public static final String WORKER_PERSISTENT_C = "compss.worker.persistent.c";

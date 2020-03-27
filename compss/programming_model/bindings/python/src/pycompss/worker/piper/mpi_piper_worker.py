@@ -25,10 +25,11 @@ PyCOMPSs Persistent Worker
 
 import sys
 import signal
-from pycompss.worker.commons.worker_constants import *
-from pycompss.worker.piper.commons.pipe_constants import *
-from pycompss.worker.piper.commons.pipe_executor import ExecutorConf
-from pycompss.worker.piper.commons.pipe_executor import executor
+from os import kill
+from pycompss.worker.commons.constants import *
+from pycompss.worker.piper.commons.constants import *
+from pycompss.worker.piper.commons.executor import ExecutorConf
+from pycompss.worker.piper.commons.executor import executor
 from pycompss.worker.piper.piper_worker import load_loggers
 from pycompss.worker.piper.piper_worker import PiperWorkerConfiguration
 from mpi4py import MPI
@@ -64,6 +65,18 @@ def shutdown_handler(signal, frame):
     else:
         print("[PYTHON EXECUTOR %s] Shutdown signal handler" % RANK)
 
+def user_signal_handler(signal, frame):
+    """
+    User signal handler (do not remove the parameters).
+
+    :param signal: shutdown signal
+    :param frame: Frame
+    :return: None
+    """
+    if is_worker():
+        print("[PYTHON WORKER] Default user signal handler")
+    else:
+        print("[PYTHON EXECUTOR %s] Default user signal handler" % RANK)
 
 ######################
 # Main method
@@ -81,6 +94,8 @@ def compss_persistent_worker(config):
 
     # Catch SIGTERM sent by bindings_piper
     signal.signal(signal.SIGTERM, shutdown_handler)
+    # Catch SIGUSER2 to solve strange behaviour with mpi4py
+    signal.signal(signal.SIGUSR2, user_signal_handler)
 
     # Set the binding in worker mode
     import pycompss.util.context as context
@@ -141,6 +156,12 @@ def compss_persistent_worker(config):
                                    " " + in_pipe +
                                    " " + str(pid))
 
+            elif line[0] == CANCEL_TASK_TAG:
+                in_pipe = line[1]
+                pid = PROCESSES.get(in_pipe)
+                logger.debug("[PYTHON WORKER] Signaling process with PID " + pid + " to cancel a task")
+                kill(int(pid), signal.SIGUSR2)
+
             elif line[0] == PING_TAG:
                 control_pipe.write(PONG_TAG)
 
@@ -182,6 +203,8 @@ def compss_persistent_executor(config):
 
     # Catch SIGTERM sent by bindings_piper
     signal.signal(signal.SIGTERM, shutdown_handler)
+    # Catch SIGUSER2 to solve strange behaviour with mpi4py
+    signal.signal(signal.SIGUSR2, user_signal_handler)
 
     # Set the binding in worker mode
     import pycompss.util.context as context

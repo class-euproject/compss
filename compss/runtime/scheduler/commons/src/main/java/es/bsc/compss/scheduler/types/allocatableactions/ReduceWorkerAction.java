@@ -40,6 +40,7 @@ import es.bsc.compss.worker.COMPSsException;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 
 public class ReduceWorkerAction<T extends WorkerResourceDescription> extends AllocatableAction {
@@ -237,6 +238,11 @@ public class ReduceWorkerAction<T extends WorkerResourceDescription> extends All
     }
 
     @Override
+    public long getGroupPriority() {
+        return ACTION_REDUCE_WORKER;
+    }
+
+    @Override
     public OnFailure getOnFailure() {
         return OnFailure.RETRY;
     }
@@ -254,5 +260,21 @@ public class ReduceWorkerAction<T extends WorkerResourceDescription> extends All
     @Override
     public boolean checkIfCanceled(AllocatableAction aa) {
         return false;
+    }
+
+    @Override
+    protected void stopAction() throws Exception {
+    }
+
+    @Override
+    public List<ResourceScheduler<?>> tryToSchedule(Score actionScore,
+        Set<ResourceScheduler<? extends WorkerResourceDescription>> availableResources)
+        throws BlockedActionException, UnassignedActionException {
+        this.schedule(actionScore);
+        List<ResourceScheduler<?>> uselessWorkers = new LinkedList<ResourceScheduler<?>>();
+        if (!this.worker.canRunSomething()) {
+            uselessWorkers.add(this.worker);
+        }
+        return uselessWorkers;
     }
 }

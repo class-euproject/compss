@@ -53,8 +53,9 @@ struct parameter {
     std::string prefix;
     int size;
     std::string name;
+    std::string c_type;
 
-    parameter(PyObject *v, int t, int d, int s, std::string p, int sz, std::string n) {
+    parameter(PyObject *v, int t, int d, int s, std::string p, int sz, std::string n, std::string ct) {
         value = v;
         type = t;
         direction = d;
@@ -62,6 +63,7 @@ struct parameter {
         prefix = p;
         size = sz;
         name = n;
+        c_type = ct;
     }
 
     parameter() { }
@@ -110,7 +112,20 @@ start_runtime(PyObject *self, PyObject *args) {
 static PyObject *
 stop_runtime(PyObject *self, PyObject *args) {
     debug("####C#### STOP\n");
-    GS_Off();
+    int code = int(PyInt_AsLong(PyTuple_GetItem(args, 0)));
+    GS_Off(code);
+    Py_RETURN_NONE;
+}
+
+/*
+  Cancel all application tasks
+*/
+static PyObject*
+cancel_application_tasks(PyObject *self, PyObject *args){
+    debug("####C#### CANCEL APPLICATION TASKS\n");
+    long app_id = long(PyInt_AsLong(PyTuple_GetItem(args, 0)));
+    debug("####C#### COMPSs cancel application tasks for AppId: %ld \n", (app_id));
+    GS_Cancel_Application_Tasks(app_id);
     Py_RETURN_NONE;
 }
 
@@ -265,10 +280,11 @@ process_task(PyObject *self, PyObject *args) {
     PyObject *compss_directions;
     PyObject *compss_streams;
     PyObject *compss_prefixes;
+    PyObject *content_types;
     //             See comment from above for the meaning of this "magic" string
-    if(!PyArg_ParseTuple(args, "lssiiiiiiiOOOOOO", &app_id, &signature, &on_failure, &time_out, &priority,
+    if(!PyArg_ParseTuple(args, "lssiiiiiiiOOOOOOO", &app_id, &signature, &on_failure, &time_out, &priority,
                          &num_nodes, &replicated, &distributed, &has_target, &num_returns, &values, &names, &compss_types,
-                         &compss_directions, &compss_streams, &compss_prefixes)) {
+                         &compss_directions, &compss_streams, &compss_prefixes, &content_types)) {
         // Return NULL after ParseTuple automatically translates to "wrong
         // arguments were passed, we expected an integer instead"-like errors
         return NULL;
@@ -297,8 +313,11 @@ process_task(PyObject *self, PyObject *args) {
         PyObject *stream     = PyList_GetItem(compss_streams, i);
         PyObject *prefix     = PyList_GetItem(compss_prefixes, i);
         PyObject *name       = PyList_GetItem(names, i);
+        PyObject *c_type     = PyList_GetItem(content_types, i);
         std::string received_prefix = _pystring_to_string(prefix);
         std::string received_name = _pystring_to_string(name);
+        std::string received_c_type = _pystring_to_string(c_type);
+
         params[i] = parameter(
             value,
             int(PyInt_AsLong(type)),
@@ -306,7 +325,8 @@ process_task(PyObject *self, PyObject *args) {
             int(PyInt_AsLong(stream)),
             received_prefix,
             _get_type_size(int(PyInt_AsLong(type))),
-            received_name
+            received_name,
+            received_c_type
         );
         debug("----> Value is at %p\n", &params[i].value);
         debug("----> Type is %d\n", params[i].type);
@@ -315,6 +335,7 @@ process_task(PyObject *self, PyObject *args) {
         debug("----> Prefix is %s\n", params[i].prefix.c_str());
         debug("----> Size is %d\n", params[i].size);
         debug("----> Name is %s\n", params[i].name.c_str());
+        debug("----> Content Type is %s\n", params[i].c_type.c_str());
     }
     debug("####C#### Adapting C++ data to BC-JNI format...\n");
     /*
@@ -323,13 +344,15 @@ process_task(PyObject *self, PyObject *args) {
       are out of our control (will be scope-cleaned, or point to PyObject
       contents)
     */
-    int num_fields = 6;
+    int num_fields = 7;
     std::vector< void* > unrolled_parameters(num_fields * num_pars, NULL);
     std::vector< char* > prefix_charp(num_pars);
     std::vector< char* > name_charp(num_pars);
+    std::vector< char* > c_type_charp(num_pars);
     for(int i = 0; i < num_pars; ++i) {
         prefix_charp[i] = (char*)params[i].prefix.c_str();
         name_charp[i]   = (char*)params[i].name.c_str();
+        c_type_charp[i]   = (char*)params[i].c_type.c_str();
         debug("####C#### Processing parameter %d\n", i);
         unrolled_parameters[num_fields * i + 0] = _get_void_pointer_to_content(params[i].value, params[i].type, params[i].size);
         unrolled_parameters[num_fields * i + 1] = (void*)&params[i].type;
@@ -337,6 +360,7 @@ process_task(PyObject *self, PyObject *args) {
         unrolled_parameters[num_fields * i + 3] = (void*)&params[i].stream;
         unrolled_parameters[num_fields * i + 4] = (void*)&prefix_charp[i];
         unrolled_parameters[num_fields * i + 5] = (void*)&name_charp[i];
+        unrolled_parameters[num_fields * i + 6] = (void*)&c_type_charp[i];
     }
 
     debug("####C#### Calling GS_ExecuteTaskNew...\n");
@@ -390,8 +414,9 @@ static PyObject *
 delete_file(PyObject *self, PyObject *args) {
     debug("####C#### DELETE FILE\n");
     char *file_name = _pystring_to_char(PyTuple_GetItem(args, 0));
+    bool wait = PyObject_IsTrue(PyTuple_GetItem(args, 1));
     debug("####C#### Calling Delete File with file %s\n", file_name);
-    GS_Delete_File(file_name);
+    GS_Delete_File(file_name, wait);
     debug("####C#### COMPSs delete file name %s with result %d \n", file_name, 0);
     Py_RETURN_NONE;
 }
@@ -477,7 +502,8 @@ open_task_group(PyObject *self, PyObject *args) {
     char *group_name = _pystring_to_char(PyTuple_GetItem(args, 0));
     debug("####C#### COMPSs task group: %s created\n", (group_name));
     bool implicit_barrier = PyObject_IsTrue(PyTuple_GetItem(args, 1));
-    GS_OpenTaskGroup(group_name, implicit_barrier);
+    long app_id = long(PyInt_AsLong(PyTuple_GetItem(args, 2)));
+    GS_OpenTaskGroup(group_name, implicit_barrier, app_id);
     Py_RETURN_NONE;
 }
 
@@ -488,8 +514,9 @@ static PyObject*
 close_task_group(PyObject *self, PyObject *args) {
     debug("####C#### CLOSING TASK GROUP\n");
     char *group_name = _pystring_to_char(PyTuple_GetItem(args, 0));
+    long app_id = long(PyInt_AsLong(PyTuple_GetItem(args, 1)));
     debug("####C#### COMPSs task group: %s closed\n", (group_name));
-    GS_CloseTaskGroup(group_name);
+    GS_CloseTaskGroup(group_name, app_id);
     Py_RETURN_NONE;
 }
 
@@ -551,6 +578,7 @@ static PyMethodDef CompssMethods[] = {
     { "error_out", (PyCFunction)error_out, METH_NOARGS, NULL},
     { "start_runtime", start_runtime, METH_VARARGS, "Start the COMPSs runtime." },
     { "stop_runtime", stop_runtime, METH_VARARGS, "Stop the COMPSs runtime." },
+    { "cancel_application_tasks", cancel_application_tasks, METH_VARARGS, "Cancel all tasks of an application." },
     { "process_task", process_task, METH_VARARGS, "Process a task call from the application." },
     { "open_file", open_file, METH_VARARGS, "Get a file for opening. The file can contain an object." },
     { "delete_file", delete_file, METH_VARARGS, "Delete a file." },

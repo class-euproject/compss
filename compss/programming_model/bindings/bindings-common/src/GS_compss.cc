@@ -27,7 +27,7 @@
 #include "BindingDataManager.h"
 
 using namespace std;
-const int NUM_FIELDS = 6;
+const int NUM_FIELDS = 7;
 
 JNIEnv *m_env;
 jobject jobjIT;
@@ -43,6 +43,7 @@ jmethodID midExecute;               /* ID of the executeTask method in the es.bs
 jmethodID midExecuteNew;            /* ID of the executeTask method in the es.bsc.compss.api.impl.COMPSsRuntimeImpl class */
 jmethodID midRegisterCE;            /* ID of the RegisterCE method in the es.bsc.compss.api.impl.COMPSsRuntimeImpl class */
 jmethodID midEmitEvent;             /* ID of the EmitEvent method in the es.bsc.compss.api.impl.COMPSsRuntimeImpl class */
+jmethodID midCancelApplicationTasks; /* ID of the CancelApplicationTasks method in the es.bsc.compss.api.impl.COMPSsRuntimeImpl class */
 
 jmethodID midOpenFile;              /* ID of the openFile method in the es.bsc.compss.api.impl.COMPSsRuntimeImpl class */
 jmethodID midCloseFile;             /* ID of the closeFile method in the es.bsc.compss.api.impl.COMPSsRuntimeImpl class */
@@ -226,14 +227,14 @@ void init_master_jni_types() {
     }
 
     // openTaskGroup method
-    midOpenTaskGroup = m_env->GetMethodID(clsITimpl, "openTaskGroup", "(Ljava/lang/String;Z)V");
+    midOpenTaskGroup = m_env->GetMethodID(clsITimpl, "openTaskGroup", "(Ljava/lang/String;ZLjava/lang/Long;)V");
     if (m_env->ExceptionOccurred()) {
         m_env->ExceptionDescribe();
         exit(1);
     }
 
     // closeTaskGroup method
-    midCloseTaskGroup = m_env->GetMethodID(clsITimpl, "closeTaskGroup", "(Ljava/lang/String;)V");
+    midCloseTaskGroup = m_env->GetMethodID(clsITimpl, "closeTaskGroup", "(Ljava/lang/String;Ljava/lang/Long;)V");
     if (m_env->ExceptionOccurred()) {
         m_env->ExceptionDescribe();
         exit(1);
@@ -241,6 +242,13 @@ void init_master_jni_types() {
 
     // EmitEvent method
     midEmitEvent = m_env->GetMethodID(clsITimpl, "emitEvent", "(IJ)V");
+    if (m_env->ExceptionOccurred()) {
+        m_env->ExceptionDescribe();
+        exit(1);
+    }
+
+    // CancelApplicationTasks method
+    midCancelApplicationTasks = m_env->GetMethodID(clsITimpl, "cancelApplicationTasks", "(Ljava/lang/Long;)V");
     if (m_env->ExceptionOccurred()) {
         m_env->ExceptionDescribe();
         exit(1);
@@ -268,7 +276,7 @@ void init_master_jni_types() {
     }
 
     // deleteFile method
-    midDeleteFile = m_env->GetMethodID(clsITimpl, "deleteFile", "(Ljava/lang/String;)Z");
+    midDeleteFile = m_env->GetMethodID(clsITimpl, "deleteFile", "(Ljava/lang/String;Z)Z");
     if (m_env->ExceptionOccurred()) {
         m_env->ExceptionDescribe();
         exit(1);
@@ -394,13 +402,15 @@ void process_param(void **params, int i, jobjectArray jobjOBJArr) {
     debug_printf("[BINDING_COMMONS]  -  @process_param\n");
     // params     is of the form: value type direction stream prefix name
     // jobjOBJArr is of the form: value type direction stream prefix name
-    // This means that the ith parameters occupies the fields in the interval [NF * k, NK * k + 5]
+    // This means that the ith parameters occupies the fields in the interval [NF * k, NK * k + 6]
     int pv = NUM_FIELDS * i + 0,
         pt = NUM_FIELDS * i + 1,
         pd = NUM_FIELDS * i + 2,
         ps = NUM_FIELDS * i + 3,
         pp = NUM_FIELDS * i + 4,
-        pn = NUM_FIELDS * i + 5;
+        pn = NUM_FIELDS * i + 5,
+        pc = NUM_FIELDS * i + 6;
+
 
     void *parVal        =           params[pv];
     int parType         = *(int*)   params[pt];
@@ -408,6 +418,7 @@ void process_param(void **params, int i, jobjectArray jobjOBJArr) {
     int parIOStream     = *(int*)   params[ps];
     void *parPrefix     =           params[pp];
     void *parName       =           params[pn];
+    void *parConType    =           params[pc];
 
     jclass clsParType = NULL; /* es.bsc.compss.types.annotations.parameter.DataType class */
     clsParType = m_env->FindClass("es/bsc/compss/types/annotations/parameter/DataType");
@@ -712,6 +723,10 @@ void process_param(void **params, int i, jobjectArray jobjOBJArr) {
     debug_printf ("[BINDING-COMMONS]  -  @process_param  -  NAME: %s\n", *(char**)parName);
     jstring jobjParName = m_env->NewStringUTF(*(char**)parName);
     m_env->SetObjectArrayElement(jobjOBJArr, pn, jobjParName);
+
+    debug_printf ("[BINDING-COMMONS]  -  @process_param  -  CONTENT TYPE: %s\n", *(char**)parConType);
+    jstring jobConType = m_env->NewStringUTF(*(char**)parConType);
+    m_env->SetObjectArrayElement(jobjOBJArr, pc, jobConType);
 }
 
 
@@ -830,7 +845,7 @@ void GS_On() {
     check_and_treat_exception(m_env,"Error creating appId object");
 }
 
-void GS_Off() {
+void GS_Off(int exit_code) {
     debug_printf("[BINDING-COMMONS]  -  @GS_Off\n");
 
     jmethodID midStopIT = NULL;
@@ -851,13 +866,15 @@ void GS_Off() {
         m_env->ExceptionDescribe();
         exit(1);
     }
-    debug_printf("[BINDING-COMMONS]  -  @Off - Waiting to end tasks\n");
-    m_env->CallVoidMethod(jobjIT, midNoMoreTasksIT, appId, "TRUE");
-    if (m_env->ExceptionOccurred()) {
-        debug_printf("[BINDING-COMMONS]  -  @GS_ExecuteTask  -  Error: Exception received when calling noMoreTasks.\n");
-        m_env->ExceptionDescribe();
-        exit(1);
-    }
+    //if (exit_code == 0){
+        debug_printf("[BINDING-COMMONS]  -  @Off - Waiting to end tasks\n");
+        m_env->CallVoidMethod(jobjIT, midNoMoreTasksIT, appId, "TRUE");
+        if (m_env->ExceptionOccurred()) {
+            debug_printf("[BINDING-COMMONS]  -  @GS_ExecuteTask  -  Error: Exception received when calling noMoreTasks.\n");
+            m_env->ExceptionDescribe();
+            exit(1);
+        }
+    //}
     debug_printf("[BINDING-COMMONS]  -  @Off - Stopping runtime\n");
     m_env->CallVoidMethod(jobjIT, midStopIT, "TRUE"); //Calling the method and passing IT Object as parameter
     if (m_env->ExceptionOccurred()) {
@@ -871,6 +888,30 @@ void GS_Off() {
     m_jvm = NULL;
     debug_printf("[BINDING-COMMONS]  -  @Off - End\n");
     pthread_mutex_destroy(&mtx);
+}
+
+void GS_Cancel_Application_Tasks(long _appId) {
+    debug_printf ("[BINDING-COMMONS]  -  @GS_Cancel_Application_Tasks\n");
+
+    get_lock();
+    JNIEnv* local_env = m_env;
+    int isAttached = check_and_attach(m_jvm, local_env);
+    release_lock();
+
+    local_env->CallVoidMethod(jobjIT, midCancelApplicationTasks, appId);
+
+    if (local_env->ExceptionOccurred()) {
+        debug_printf("[BINDING-COMMONS]  -  @GS_CancelApplicationTasks  -  Error: Exception received when calling cancelApplicationTasks.\n");
+        local_env->ExceptionDescribe();
+        exit(1);
+    }
+
+    if (isAttached == 1) {
+        m_jvm->DetachCurrentThread();
+
+    }
+    debug_printf ("[BINDING-COMMONS]  -  @GS_Cancel_Application_Tasks  -  Tasks cancelled\n");
+
 }
 
 void GS_Get_AppDir(char **buf) {
@@ -1029,6 +1070,7 @@ void GS_RegisterCE(char *CESignature, char *ImplSignature, char *ImplConstraints
         jstring tmp = m_env->NewStringUTF(ImplTypeArgs[i]);
         m_env->SetObjectArrayElement(implArgs, i, tmp);
     }
+    //debug_printf("[BINDING-COMMONS]  -  @GS_RegisterCE  -    Calling Runtime Function Register Core Element \n");
     m_env->CallVoidMethod(jobjIT, midRegisterCE, m_env->NewStringUTF(CESignature),
                           m_env->NewStringUTF(ImplSignature),
                           m_env->NewStringUTF(ImplConstraints),
@@ -1038,7 +1080,7 @@ void GS_RegisterCE(char *CESignature, char *ImplSignature, char *ImplConstraints
         debug_printf("[BINDING-COMMONS]  -  @GS_RegisterCE  -  Error: Exception received when calling registerCE.\n");
         m_env->ExceptionDescribe();
         release_lock();
-        GS_Off();
+        GS_Off(1);
         exit(1);
     }
     if (isAttached==1) {
@@ -1129,17 +1171,20 @@ void GS_Close_File(char *file_name, int mode) {
     debug_printf("[BINDING-COMMONS]  -  @GS_Close_File  -  COMPSs filename: %s\n", file_name);
 }
 
-void GS_Delete_File(char *file_name) {
+void GS_Delete_File(char *file_name, int wait) {
 
 	get_lock();
     int isAttached = check_and_attach(m_jvm, m_env);
 
-    jboolean res = m_env->CallBooleanMethod(jobjIT, midDeleteFile, m_env->NewStringUTF(file_name));
+    bool _wait = false;
+    if (wait != 0) _wait = true;
+
+    jboolean res = m_env->CallBooleanMethod(jobjIT, midDeleteFile, m_env->NewStringUTF(file_name), _wait);
     if (m_env->ExceptionOccurred()) {
         debug_printf("[BINDING-COMMONS]  -  @GS_Delete_File  -  Error: Exception received when calling deleteFile.\n");
         m_env->ExceptionDescribe();
         release_lock();
-        GS_Off();
+        GS_Off(1);
         exit(1);
     }
     //*buf = (int*)&res;
@@ -1253,7 +1298,7 @@ void GS_BarrierNew(long _appId, int noMoreTasks) {
 
     if (local_env->ExceptionOccurred()) {
         local_env->ExceptionDescribe();
-
+        GS_Off(1);
         exit(1);
     }
 
@@ -1283,7 +1328,7 @@ void GS_BarrierGroup(long _appId, char *group_name, char **exception_message) {
 
 
 
-void GS_OpenTaskGroup(char *group_name, int implicitBarrier){
+void GS_OpenTaskGroup(char *group_name, int implicitBarrier, long _appId){
     jstring jstr = NULL;
     get_lock();
     JNIEnv* local_env = m_env;
@@ -1291,7 +1336,7 @@ void GS_OpenTaskGroup(char *group_name, int implicitBarrier){
     bool _implicitBarrier = false;
     if (implicitBarrier != 0) _implicitBarrier = true;
     release_lock();
-    local_env->CallVoidMethod(jobjIT, midOpenTaskGroup, local_env->NewStringUTF(group_name), _implicitBarrier   );
+    local_env->CallVoidMethod(jobjIT, midOpenTaskGroup, local_env->NewStringUTF(group_name), _implicitBarrier, appId);
 
     if (local_env->ExceptionOccurred()) {
         local_env->ExceptionDescribe();
@@ -1304,16 +1349,17 @@ void GS_OpenTaskGroup(char *group_name, int implicitBarrier){
     debug_printf("[BINDING-COMMONS]  -  @GS_OpenTaskGroup  -  implicit barrier: %s\n", _implicitBarrier ? "true":"false");
 }
 
-void GS_CloseTaskGroup(char *group_name){
+void GS_CloseTaskGroup(char *group_name, long _appId){
     jstring jstr = NULL;
     get_lock();
     JNIEnv* local_env = m_env;
     int isAttached = check_and_attach(m_jvm, local_env);
     release_lock();
-    local_env->CallVoidMethod(jobjIT, midCloseTaskGroup, local_env->NewStringUTF(group_name));
+    local_env->CallVoidMethod(jobjIT, midCloseTaskGroup, local_env->NewStringUTF(group_name), appId);
 
     if (local_env->ExceptionOccurred()) {
         local_env->ExceptionDescribe();
+        GS_Off(1);
         exit(1);
     }
     if (isAttached==1) {
@@ -1328,6 +1374,8 @@ void GS_EmitEvent(int type, long id) {
 
     if ( (type < 0 ) or (id < 0) ) {
         debug_printf ("[BINDING-COMMONS]  -  @GS_EmitEvent  -  Error: event type and ID must be positive integers, but found: type: %u, ID: %lu\n", type, id);
+        release_lock();
+        GS_Off(1);
         exit(1);
     } else {
         debug_printf ("[BINDING-COMMONS]  -  @GS_EmitEvent  -  Type: %u, ID: %lu\n", type, id);
@@ -1335,6 +1383,7 @@ void GS_EmitEvent(int type, long id) {
         if (m_env->ExceptionOccurred()) {
             m_env->ExceptionDescribe();
             release_lock();
+            GS_Off(1);
             exit(1);
         }
     }

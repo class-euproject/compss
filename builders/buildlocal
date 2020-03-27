@@ -16,7 +16,7 @@
 #---------------------------------------------------
 # SCRIPT CONSTANTS DECLARATION
 #---------------------------------------------------
-COMPSS_VERSION=2.5.rc1907
+COMPSS_VERSION=2.6.rc2003
 
 DEFAULT_MONITOR=true
 DEFAULT_BINDINGS=true
@@ -24,8 +24,6 @@ DEFAULT_PYCOMPSS=true
 DEFAULT_TRACING=true
 DEFAULT_AUTOPARALLEL=true
 DEFAULT_KAFKA=true
-DEFAULT_DOCKER=true
-DEFAULT_LXC=true
 DEFAULT_USER=false
 DEFAULT_TARGET_DIR=/opt/COMPSs
 DEFAULT_MVN_TESTS=""
@@ -38,8 +36,6 @@ NO_PYCOMPSS="Warning: No pycompss specified. Loading default value"
 NO_TRACING="Warning: No tracing specified. Loading default value"
 NO_AUTOPARALLEL="Warning: No autoparallel specified. Loading default value"
 NO_KAFKA="Warning: No Kafka module specified. Loading default value"
-NO_DOCKER="Warning: No Docker image creation specified. Loading default value"
-NO_LXC="Warning: No LXC image creation specified. Loading default value"
 NO_TARGET_DIR="Warning: No install directory specified. Loading default location"
 
 
@@ -82,18 +78,10 @@ show_opts() {
     --autoparallel, -a          Enable autoparallel module installation
     --no-autoparallel, -A       Disable autoparallel module installation
                                 Default: ${DEFAULT_AUTOPARALLEL}
-   
+
     --kafka, -k                 Enable Kafka module installation
     --no-kafka, -K              Disable Kafka module installation
                                 Default: ${DEFAULT_KAFKA}
-
-    --docker, -d                Enable build of worker Docker images
-    --no-docker, -D             Disable build of worker Docker images
-                                Default ${DEFAULT_DOCKER}
-
-    --lxc, -x                   Enable build of worker LXC images
-    --no-lxc, -X                Disable build of worker LXC images
-                                Default ${DEFAULT_LXC}
 
     --nothing, -N               Disable all previous options
                                 Default: unused
@@ -108,7 +96,7 @@ show_opts() {
 * Parameters:
     targetDir                   COMPSs installation directory
                                 Default: ${DEFAULT_TARGET_DIR}
-                                            
+
 EOT
 }
 
@@ -124,7 +112,7 @@ EOT
 
 show_version() {
   echo "COMPSs version ${COMPSS_VERSION}"
-  echo " "
+  echo
 }
 
 # Displays arguments warnings
@@ -145,7 +133,7 @@ display_error() {
 
 get_args() {
   # Parse COMPSs Options
-  while getopts hvmMbBpPtTaAkKdDxXN-: flag; do
+  while getopts hvmMbBpPtTaAkKN-: flag; do
     # Treat the argument
     case "$flag" in
       h)
@@ -207,22 +195,6 @@ get_args() {
         # Custom Kafka value
         kafka=false
         ;;
-      d)
-        # Custom Docker value
-        docker=true
-        ;;
-      D)
-        # Custom Docker value
-        docker=false
-        ;;
-      x)
-        # Custom LXC value
-        lxc=true
-        ;;
-      X)
-        # Custom LXC value
-        lxc=false
-        ;;
       N)
         # Disables all flags
         tracing=false
@@ -231,8 +203,6 @@ get_args() {
         pycompss=false
         autoparallel=false
         kafka=false
-        docker=false
-        lxc=false
         ;;
       -)
 	# Check more complex arguments
@@ -301,18 +271,6 @@ get_args() {
             # Custom Kafka value
             kafka=false
             ;;
-          docker)
-            docker=true
-            ;;
-          no-docker)
-            docker=false
-            ;;
-          lxc)
-            lxc=true
-            ;;
-          no-lxc)
-            lxc=false
-            ;;
           nothing)
             # Disables all flags
             tracing=false
@@ -321,8 +279,6 @@ get_args() {
             pycompss=false
             autoparallel=false
             kafka=false
-            docker=false
-            lxc=false
             ;;
           user-exec=*)
             # Enables specific user mvn execution
@@ -386,16 +342,6 @@ check_args() {
     kafka=${DEFAULT_KAFKA}
   fi
 
-  if [ -z "${docker}" ]; then
-    display_warning "${NO_DOCKER}"
-    images=${DEFAULT_DOCKER}
-  fi
-
-  if [ -z "${lxc}" ]; then
-    display_warning "${NO_LXC}"
-    images=${DEFAULT_LXC}
-  fi
-
   if [ -z "${user_exec}" ]; then
     if [ -z "${SUDO_USER}" ]; then
       # Cannot retrieve sudo user from env
@@ -430,16 +376,14 @@ warn_and_log_parameters() {
   echo "- Tracing        = ${tracing}"
   echo "- AutoParallel   = ${autoparallel}"
   echo "- Stream Backend = ${kafka}"
-  echo "- Docker images  = ${docker}"
-  echo "- LXC images     = ${lxc}"
   echo "- SCRIPT_DIR     = ${SCRIPT_DIR}"
   echo "- SOURCES DIR    = ${SOURCES_DIR}"
   echo "- TMP_DIR        = ${TMP_DIR}"
   sleep 5
 }
 
-# INSTALLS ALL THE NECESSARY JARS FOR AN ADAPTOR. 
-# REQUIRES 2 PARAMETERS: 
+# INSTALLS ALL THE NECESSARY JARS FOR AN ADAPTOR.
+# REQUIRES 2 PARAMETERS:
 #  $1 THE PATH TO THE COMPILED ADAPTOR ROOT FOLDER
 #  $2 PATH WHERE TO INSTALL THE ADAPTOR
 install_adaptor() {
@@ -457,13 +401,20 @@ install_adaptor() {
       mkdir "$2/${adaptor_name}"/worker
       cp "$1"/worker/*.jar "$2"/"${adaptor_name}"/worker
     fi
-    if [ -f "$1"/worker/properties ]; then 
+    if [ -f "$1"/worker/properties ]; then
       cp "$1"/worker/properties "$2"/"${adaptor_name}"/worker
     fi
     if [ -d "$1"/scripts/ ]; then
       mkdir -p "${targetDir}"/Runtime/scripts/system/adaptors/"${adaptor_name}"
       cp -r "$1"/scripts/* "${targetDir}"/Runtime/scripts/system/adaptors/"${adaptor_name}"
     fi
+}
+
+# PRIVATE FUNCTION TO CHECK IF A COMMAND IS AVAILABLE
+# Currently to check if python2 and/or python3 exist, to decide wether
+# to install one, the other, or both.
+command_exists () {
+    type "$1" &> /dev/null ;
 }
 
 install_compss() {
@@ -551,7 +502,7 @@ install_compss() {
   # GAT
   cp -r "${TMP_DIR}/dependencies/JAVA_GAT" ${targetDir}/Dependencies/
   # Paraver CFGs
-  cp -r "${TMP_DIR}/files/paraver" ${targetDir}/Dependencies/  
+  cp -r "${TMP_DIR}/files/paraver" ${targetDir}/Dependencies/
   # Extrae
   if [ "$tracing" == "true" ]; then
     cd "${TMP_DIR}"/dependencies/extrae
@@ -602,7 +553,7 @@ install_compss() {
     cd "${SCRIPT_DIR}"
   fi
 
-  # CONFIG 
+  # CONFIG
   echo "--- Copy configuration"
   find "${TMP_DIR}"/compss/runtime/config -name src -type d -prune -exec rm -r "{}" \;
   find "${TMP_DIR}"/compss/runtime/config -name target -type d -prune -exec rm -r "{}" \;
@@ -713,98 +664,32 @@ install_compss() {
     if [ "${pycompss}" == "true" ]; then
       echo "- Deploying python-binding files"
       cd "${TMP_DIR}/compss/programming_model/bindings/python"
-      ./install "${targetDir}/Bindings/python" true true
-      ev=$?
+      if command_exists "python2" ; then
+        if command_exists "python3" ; then
+          # Install python binding for both python2 and python3
+          ./install "${targetDir}/Bindings/python" true true
+          ev=$?
+        else
+          # Install python binding only for python2
+          ./install "${targetDir}/Bindings/python" true false python2
+          ev=$?
+        fi
+      else
+        if command_exists "python3" ; then
+          # Install python binding only for python3
+          ./install "${targetDir}/Bindings/python" true false python3
+          ev=$?
+        else
+          # Error no python 2 nor 3
+          echo "ERROR: Could not find python2 nor python3 commands."
+          ev=1
+        fi
+      fi
       if [ $ev -ne 0 ]; then
         echo "ERROR: Failed to install Python-binding"
         exit 1
       fi
       cd "${SCRIPT_DIR}"
-    fi
-  fi
-
-  # images
-  if [ "${docker}" == "true" ] || [ "${lxc}" == "true" ]; then
-    echo "- Generating images"
-  fi
-
-  if [ "${docker}" == "true" ]; then
-    DOCKER=`command -v docker`
-    if [ -z "${DOCKER}" ]; then
-      echo "ERROR: Docker could not be found. Omitting docker image creation"
-    else
-      echo "--- Generating COMPSs base Docker image for Java"
-      mkdir -p "${TMP_DIR}/utils/docker/worker/java/compss/adaptors/nio"
-      mkdir -p "${TMP_DIR}/utils/docker/worker/java/compss/configuration"
-      cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/docker/worker/java/compss/adaptors/nio/"
-      cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/docker/worker/java/compss/configuration/"
-      ${DOCKER} build -t bscppc/compss-worker-$(arch):${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/java"
-      if [ "${bindings}" == "true" ] || [ "${pycompss}" == "true" ]; then
-        echo "--- Generating COMPSs base Docker image for Python (PyCOMPSs)"
-        mkdir -p "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/adaptors/nio"
-        mkdir -p "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/configuration"
-        mkdir -p "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/scripts/system/adaptors/nio/pipers"
-        mkdir -p "${TMP_DIR}/utils/docker/worker/python/compss/Bindings"
-        cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/adaptors/nio/"
-        cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/configuration/"
-        cp -r "${SCRIPT_DIR}/../utils/scripts/containers/bindings_piper.sh" "${TMP_DIR}/utils/docker/worker/python/compss/Runtime/scripts/system/adaptors/nio/pipers/"
-        cp -Lr "${targetDir}/Bindings/" "${TMP_DIR}/utils/docker/worker/python/compss/"
-        rm -rf "${TMP_DIR}/utils/docker/worker/python/compss/Bindings/c"
-        rm -rf "${TMP_DIR}/utils/docker/worker/python/compss/Bindings/python/2"
-        ${DOCKER} build --build-arg COMPSS_VERSION=${COMPSS_VERSION} -t bscppc/pycompss3-worker-$(arch):${COMPSS_VERSION} "${TMP_DIR}/utils/docker/worker/python"
-      fi
-    fi
-  fi
-
-  if [ "${lxc}" == "true" ]; then
-    LXC=`command -v lxc`
-    if [ -z "${LXC}" ]; then
-      echo "ERROR: LXC could not be found. Omitting LXC image creation"
-    else
-      echo "--- Generating COMPSs base LXC image for Java"
-      mkdir -p "${TMP_DIR}/utils/lxc/worker/java/compss/adaptors/nio"
-      mkdir -p "${TMP_DIR}/utils/lxc/worker/java/compss/configuration"
-      cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/lxc/worker/java/compss/adaptors/nio/"
-      cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/lxc/worker/java/compss/configuration/"
-      LXC_CONTAINER_NAME="placeholder-`uuidgen | cut -f1 -d"-"`"
-      ${LXC} launch images:alpine/3.10 ${LXC_CONTAINER_NAME}
-      ${LXC} file push -pr "${TMP_DIR}"/utils/lxc/worker/java/compss/* ${LXC_CONTAINER_NAME}/opt/COMPSs/Runtime
-      sleep 1 # Without this sleep somehow the next command fails. Leave it like this.
-      ${LXC} exec ${LXC_CONTAINER_NAME} -- /bin/sh -c "apk add --no-cache --update util-linux openjdk8-jre-base"
-      ${LXC} stop ${LXC_CONTAINER_NAME}
-      ${LXC} publish ${LXC_CONTAINER_NAME} --alias compss-${COMPSS_VERSION}
-      ${LXC} delete ${LXC_CONTAINER_NAME}
-      ${LXC} image edit compss-${COMPSS_VERSION} <<EOF
-properties:
-  description: COMPSs ${COMPSS_VERSION} base image for LXC.
-  os: alpine
-EOF
-      if [ "${bindings}" == "true" ] && [ "${pycompss}" == "true" ]; then
-        echo "--- Generating COMPSs base LXC image for Python (PyCOMPSs)"
-#        mkdir -p "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/adaptors/nio"
-#        mkdir -p "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/configuration"
-#        mkdir -p "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/scripts/system/adaptors/nio/pipers"
-#        mkdir -p "${TMP_DIR}/utils/lxc/worker/python/compss/Bindings"
-#        cp -r "${targetDir}/Runtime/adaptors/nio/worker" "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/adaptors/nio/"
-#        cp -r "${targetDir}/Runtime/configuration/log" "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/configuration/"
-#        cp -r "${SCRIPT_DIR}/../utils/scripts/containers/bindings_piper.sh" "${TMP_DIR}/utils/lxc/worker/python/compss/Runtime/scripts/system/adaptors/nio/pipers/"
-#        cp -Lr "${targetDir}/Bindings/" "${TMP_DIR}/utils/lxc/worker/python/compss/"
-#        rm -rf "${TMP_DIR}/utils/lxc/worker/python/compss/Bindings/c"
-#        rm -rf "${TMP_DIR}/utils/lxc/worker/python/compss/Bindings/python/2"
-#        LXC_CONTAINER_NAME="placeholder-`uuidgen | cut -f1 -d"-"`"
-#        ${LXC} launch compss-${COMPSS_VERSION} ${LXC_CONTAINER_NAME}
-#        ${LXC} file push -pr "${TMP_DIR}"/utils/lxc/worker/python/compss/* ${LXC_CONTAINER_NAME}/opt/COMPSs/
-#        sleep 1 # Without this sleep somehow the next command fails. Leave it like this.
-#        ${LXC} exec ${LXC_CONTAINER_NAME} -- /bin/sh -c "apk add --no-cache --update python3 && ln -s /usr/bin/python3 /usr/bin/python"
-#        ${LXC} stop ${LXC_CONTAINER_NAME}
-#        ${LXC} publish ${LXC_CONTAINER_NAME} --alias pycompss3-${COMPSS_VERSION}
-#        ${LXC} delete ${LXC_CONTAINER_NAME}
-#        ${LXC} image edit pycompss3-${COMPSS_VERSION} <<EOF
-#properties:
-#  description: PyCOMPSs ${COMPSS_VERSION} base image for LXC.
-#  os: alpine
-#EOF
-      fi
     fi
   fi
 

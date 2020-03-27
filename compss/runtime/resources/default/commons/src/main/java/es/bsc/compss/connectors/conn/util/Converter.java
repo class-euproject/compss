@@ -137,8 +137,9 @@ public class Converter {
      * @return Installation description.
      */
     private static InstallationDescription getInstallationDescription(MethodConfiguration config) {
-        return new InstallationDescription(config.getInstallDir(), config.getAppDir(), config.getClasspath(),
-            config.getPythonpath(), config.getLibraryPath(), config.getWorkingDir(), config.getLimitOfTasks());
+        return new InstallationDescription(config.getAdaptorName(), config.getMinPort(), config.getMaxPort(),
+            config.getInstallDir(), config.getAppDir(), config.getClasspath(), config.getPythonpath(),
+            config.getLibraryPath(), config.getWorkingDir(), config.getLimitOfTasks());
     }
 
     /*

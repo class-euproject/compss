@@ -89,7 +89,7 @@ def find_packages(path='./src'):
 setup(
     # Metadata
     name='pycompss',
-    version='2.5.rc1907',
+    version='2.6.rc2003',
     description='Python Binding for COMP Superscalar Runtime',
     long_description=open('README.txt').read(),
     author='Workflows and Distributed Computing Group (WDC) - Barcelona Supercomputing Center (BSC)',
@@ -110,7 +110,7 @@ setup(
     },
 
     # Build
-    package_dir={'pycompss': 'src/pycompss'},
+    package_dir={'pycompss': 'src/pycompss', 'exaqute': 'src/exaqute'},
     packages=[''] + find_packages(),
     package_data={
         '': ['log/logging.json', 'log/logging_debug.json', 'log/logging_off.json', 'README.md', 'tests/*']

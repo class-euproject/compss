@@ -31,11 +31,11 @@ import os
 import sys
 from mpi4py import MPI
 
-from pycompss.util.logs import init_logging_worker
-from pycompss.worker.piper.commons.pipe_constants import EXECUTE_TASK_TAG
-from pycompss.worker.piper.commons.pipe_constants import END_TASK_TAG
-from pycompss.worker.commons.executor_commons import build_return_params_message
-from pycompss.worker.commons.worker_commons import execute_task
+from pycompss.util.logger.helpers import init_logging_worker
+from pycompss.worker.piper.commons.constants import EXECUTE_TASK_TAG
+from pycompss.worker.piper.commons.constants import END_TASK_TAG
+from pycompss.worker.commons.executor import build_return_params_message
+from pycompss.worker.commons.worker import execute_task
 
 
 def shutdown_handler(signal, frame):
@@ -81,20 +81,20 @@ def executor(process_name, command):
     logger_handlers = copy.copy(logger.handlers)
     logger_level = logger.getEffectiveLevel()
     logger_formatter = logging.Formatter(logger_handlers[0].formatter._fmt)
-    
+
     if __debug__:
         logger.debug("[PYTHON EXECUTOR] [%s] Starting process" %
                      str(process_name))
 
-    process_task(command, process_name,
-                 logger, logger_handlers, logger_level, logger_formatter)
+    sig, msg = process_task(command, process_name, logger, logger_handlers, logger_level, logger_formatter)
 
     sys.stdout.flush()
     sys.stderr.flush()
     if __debug__:
         logger.debug("[PYTHON EXECUTOR] [%s] Exiting process " %
                      str(process_name))
-
+    if sig != 0:
+        sys.exit(sig)
 
 def process_task(current_line, process_name,
                  logger, logger_handlers, logger_level, logger_formatter):
@@ -135,7 +135,7 @@ def process_task(current_line, process_name,
         # current_line[9] = <string>  = module
         # current_line[10]= <string>  = method
         # current_line[11]= <string>  = time out
-        # current_line[12]= <integer> = Number of slaves (worker nodes) == #nodes
+        # current_line[12]= <integer> = Number of slaves (worker nodes)==#nodes
         # <<list of slave nodes>>
         # current_line[12 + #nodes] = <integer> = computing units
         # current_line[13 + #nodes] = <boolean> = has target
@@ -191,7 +191,7 @@ def process_task(current_line, process_name,
             storage_conf = "null"
             tracing = False
             python_mpi = True
-            exit_value, new_types, new_values = execute_task(process_name,
+            exit_value, new_types, new_values, time_out, except_msg = execute_task(process_name,
                                                              storage_conf,
                                                              current_line[9:],
                                                              tracing,
@@ -210,14 +210,24 @@ def process_task(current_line, process_name,
                 # Task has finished without exceptions
                 # endTask jobId exitValue message
                 params = build_return_params_message(new_types, new_values)
-                message = END_TASK_TAG + " " + str(job_id) \
-                          + " " + str(exit_value) \
-                          + " " + str(params) + "\n"
+                message = END_TASK_TAG + " " + str(job_id)
+                message += " " + str(exit_value) + " " + str(params) + "\n"
+            elif exit_value == 2:
+                # Task has finished with a COMPSs Exception
+                # compssExceptionTask jobId exitValue message
+
+                except_msg = except_msg.replace(" ", "_")
+                message = COMPSS_EXCEPTION_TAG + " " + str(job_id)
+                message += " " + str(except_msg) + "\n"
+                if __debug__:
+                    logger.debug(
+                        "%s - COMPSS EXCEPTION TASK MESSAGE: %s" %
+                        (str(process_name),
+                         str(except_msg)))
             else:
                 # An exception has been raised in task
-                message = END_TASK_TAG + " " + \
-                          str(job_id) + " " + \
-                          str(exit_value) + "\n"
+                message = END_TASK_TAG + " " + str(job_id)
+                message += " " + str(exit_value) + "\n"
 
             if __debug__:
                 logger.debug("%s - END TASK MESSAGE: %s" % (str(process_name),
@@ -227,7 +237,9 @@ def process_task(current_line, process_name,
             # TaskResult ==> jobId exitValue D List<Object>
             #
             # Where List<Object> has D * 2 length:
-            # D = #parameters == #task_parameters + (has_target ? 1 : 0) + #returns
+            # D = #parameters == #task_parameters +
+            #                    (has_target ? 1 : 0) +
+            #                    #returns
             # And contains a pair of elements per parameter:
             #     - Parameter new type.
             #     - Parameter new value:
@@ -246,6 +258,9 @@ def process_task(current_line, process_name,
         except Exception as e:
             logger.exception("%s - Exception %s" % (str(process_name),
                                                     str(e)))
+            exit_value = 7
+            message = message = END_TASK_TAG + " " + str(job_id)
+            message += " " + str(exit_value) + "\n"
 
         # Clean environment variables
         if __debug__:
@@ -268,7 +283,11 @@ def process_task(current_line, process_name,
         if __debug__:
             logger.debug("[PYTHON EXECUTOR] [%s] Unexpected message: %s" %
                          (str(process_name), str(current_line)))
-        raise Exception("Unexpected message: %s" % str(current_line))
+        exit_value = 7
+        message = END_TASK_TAG + " " + str(job_id)
+        message += " " + str(exit_value) + "\n"
+
+    return exit_value, message
 
 
 if __name__ == '__main__':

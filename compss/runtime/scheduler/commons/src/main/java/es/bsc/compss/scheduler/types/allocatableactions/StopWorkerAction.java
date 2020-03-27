@@ -42,6 +42,7 @@ import es.bsc.compss.worker.COMPSsException;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.Semaphore;
 
 
@@ -59,7 +60,7 @@ public class StopWorkerAction extends AllocatableAction {
      */
     /**
      * Creates a new StopWorkerAction instance.
-     * 
+     *
      * @param schedulingInformation Associated scheduling information.
      * @param worker Associated worker ResourceScheduler.
      * @param ts Associated TaskScheduler.
@@ -109,7 +110,9 @@ public class StopWorkerAction extends AllocatableAction {
             public void run() {
                 Worker<WorkerResourceDescription> wResource = (Worker<WorkerResourceDescription>) worker.getResource();
                 Thread.currentThread().setName(wResource.getName() + " stopper");
-                wResource.retrieveData(true);
+                wResource.retrieveUniqueDataValues();
+                wResource.disableExecution();
+                wResource.retrieveTracingAndDebugData();
                 Semaphore sem = new Semaphore(0);
                 ShutdownListener sl = new ShutdownListener(sem);
                 wResource.stop(sl);
@@ -259,6 +262,11 @@ public class StopWorkerAction extends AllocatableAction {
     }
 
     @Override
+    public long getGroupPriority() {
+        return ACTION_STOP_WORKER;
+    }
+
+    @Override
     public OnFailure getOnFailure() {
         return OnFailure.RETRY;
     }
@@ -276,5 +284,21 @@ public class StopWorkerAction extends AllocatableAction {
     @Override
     public boolean checkIfCanceled(AllocatableAction aa) {
         return false;
+    }
+
+    @Override
+    protected void stopAction() throws Exception {
+    }
+
+    @Override
+    public List<ResourceScheduler<?>> tryToSchedule(Score actionScore,
+        Set<ResourceScheduler<? extends WorkerResourceDescription>> availableResources)
+        throws BlockedActionException, UnassignedActionException {
+        this.schedule(actionScore);
+        List<ResourceScheduler<?>> uselessWorkers = new LinkedList<ResourceScheduler<?>>();
+        if (!this.worker.canRunSomething()) {
+            uselessWorkers.add(this.worker);
+        }
+        return uselessWorkers;
     }
 }

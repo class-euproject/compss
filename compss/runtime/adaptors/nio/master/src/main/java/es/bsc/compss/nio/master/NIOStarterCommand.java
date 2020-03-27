@@ -1,3 +1,19 @@
+/*
+ *  Copyright 2002-2019 Barcelona Supercomputing Center (www.bsc.es)
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ */
 package es.bsc.compss.nio.master;
 
 import es.bsc.compss.comm.Comm;
@@ -6,7 +22,6 @@ import es.bsc.compss.nio.NIOTracer;
 import es.bsc.compss.types.WorkerStarterCommand;
 
 import java.io.File;
-import java.util.Arrays;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -38,8 +53,8 @@ public class NIOStarterCommand extends WorkerStarterCommand {
      * @param pythonpathFromFile worker python path in projects.xml file
      * @param libPathFromFile worker library path path in project.xml file
      * @param totalCPU total CPU computing units
-     * @param totalGPU total GPU
-     * @param totalFPGA total FPGA
+     * @param totalGPU total GPU units
+     * @param totalFPGA total FPGA units
      * @param limitOfTasks limit of tasks
      * @param hostId tracing worker identifier
      */
@@ -61,6 +76,7 @@ public class NIOStarterCommand extends WorkerStarterCommand {
                 this.workerClasspath += LIB_SEPARATOR + appDir + LIB_SEPARATOR + appDir + "/" + jarName;
             }
         }
+
     }
 
     @Override

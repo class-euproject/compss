@@ -28,9 +28,11 @@ import es.bsc.compss.nio.NIOParam;
 import es.bsc.compss.nio.NIOTask;
 import es.bsc.compss.nio.NIOTracer;
 import es.bsc.compss.nio.NIOUri;
+import es.bsc.compss.nio.commands.CommandCancelTask;
 import es.bsc.compss.nio.commands.CommandDataFetch;
 import es.bsc.compss.nio.commands.CommandExecutorShutdown;
 import es.bsc.compss.nio.commands.CommandNewTask;
+import es.bsc.compss.nio.commands.CommandRemoveObsoletes;
 import es.bsc.compss.nio.commands.CommandResourcesIncrease;
 import es.bsc.compss.nio.commands.CommandResourcesReduce;
 import es.bsc.compss.nio.commands.CommandShutdown;
@@ -54,6 +56,7 @@ import es.bsc.compss.types.data.Transferable;
 import es.bsc.compss.types.data.listener.EventListener;
 import es.bsc.compss.types.data.location.DataLocation;
 import es.bsc.compss.types.data.location.ProtocolType;
+import es.bsc.compss.types.data.operation.DataOperation;
 import es.bsc.compss.types.data.operation.OperationEndState;
 import es.bsc.compss.types.data.operation.copy.Copy;
 import es.bsc.compss.types.data.operation.copy.DeferredCopy;
@@ -72,6 +75,7 @@ import es.bsc.compss.types.uri.SimpleURI;
 import es.bsc.compss.util.ErrorManager;
 import es.bsc.compss.util.TraceEvent;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Semaphore;
@@ -322,6 +326,7 @@ public class NIOWorkerNode extends COMPSsWorker {
                     Connection c = NIOAgent.getTransferManager().startConnection(node);
                     commManager.shuttingDown(this, c, sl);
                     CommandShutdown cmd = new CommandShutdown(null);
+                    NIOAgent.registerOngoingCommand(c, cmd);
                     c.sendCommand(cmd);
                     c.receive();
                     c.finishConnection();
@@ -350,6 +355,7 @@ public class NIOWorkerNode extends COMPSsWorker {
 
             LOGGER.debug("Sending shutdown command " + this.getName());
             CommandExecutorShutdown cmd = new CommandExecutorShutdown();
+            NIOAgent.registerOngoingCommand(c, cmd);
             c.sendCommand(cmd);
             c.receive();
             c.finishConnection();
@@ -557,10 +563,12 @@ public class NIOWorkerNode extends COMPSsWorker {
                 break;
             }
         }
-        LogicalData ld = c.getSourceData();
-        String path;
+        final LogicalData ld = c.getSourceData();
+        final LogicalData tgtData = c.getTargetData();
+
         synchronized (ld) {
-            LogicalData tgtData = c.getTargetData();
+            // Assigning target location to the copy
+            String path;
             if (tgtData != null) {
                 LOGGER.debug("tgtResName:" + tgtRes.getNode().getName());
                 LOGGER.debug("tgtData: " + tgtData.toString());
@@ -578,23 +586,69 @@ public class NIOWorkerNode extends COMPSsWorker {
                     path = c.getTargetLoc().getURIInHost(tgtRes).getPath();
                 }
             } else {
-                path = c.getTargetLoc().getURIInHost(tgtRes).getPath();
+                if (c.getTargetLoc() != null) {
+                    path = c.getTargetLoc().getURIInHost(tgtRes).getPath();
+                } else {
+                    c.end(OperationEndState.OP_FAILED,
+                        new Exception(" Target location for copy " + c.getName() + " is null."));
+                    return;
+                }
             }
-            c.setProposedSource(getNIODatafromLogicalData(ld));
             LOGGER.debug("Setting final target in deferred copy " + path);
             c.setFinalTarget(path);
-            // TODO: MISSING CHECK IF FILE IS ALREADY BEEN COPIED IN A SHARED LOCATION
-            ld.startCopy(c, c.getTargetLoc());
-            commManager.registerCopy(c);
+
+            // Assigning sources to the Copy
+            NIOData dataSources = getNIODatafromLogicalData(ld);
+            if (dataSources.getSources().isEmpty()) {
+                for (Copy inProgressCopy : ld.getCopiesInProgress()) {
+                    LOGGER.debug("No source locations for copy " + c.getName() + "." + " Waiting for copy "
+                        + inProgressCopy.getName() + " to finish.");
+                    inProgressCopy.addEventListener(new EventListener() {
+
+                        @Override
+                        public void notifyEnd(DataOperation fOp) {
+                            synchronized (ld) {
+                                prepareCopy(c, dataSources);
+                            }
+                            c.end(OperationEndState.OP_OK);
+                        }
+
+                        @Override
+                        public void notifyFailure(DataOperation fOp, Exception e) {
+                            c.end(OperationEndState.OP_FAILED, e);
+                        }
+                    });
+                    return;
+                }
+                c.end(OperationEndState.OP_FAILED,
+                    new Exception(" No source location nor copies in progress for copy " + c.getName()));
+            }
+
+            try {
+                prepareCopy(c, dataSources);
+            } catch (Exception e) {
+                c.end(OperationEndState.OP_FAILED, e);
+            }
         }
         c.end(OperationEndState.OP_OK);
     }
 
+    private void prepareCopy(Copy c, NIOData dataSources) {
+        LogicalData srcData = c.getSourceData();
+
+        c.setProposedSource(dataSources);
+
+        // TODO: MISSING CHECK IF FILE IS ALREADY BEEN COPIED IN A SHARED LOCATION
+        srcData.startCopy(c, c.getTargetLoc());
+        commManager.registerCopy(c);
+    }
+
     @Override
     public void enforceDataObtaining(Transferable reason, EventListener listener) {
-        NIOParam param = NIOParamFactory.fromParameter((Parameter) reason);
+        NIOParam param = NIOParamFactory.fromParameter((Parameter) reason, this);
         CommandDataFetch cmd = new CommandDataFetch(param, listener.getId());
         Connection c = NIOAgent.getTransferManager().startConnection(node);
+        NIOAgent.registerOngoingCommand(c, cmd);
         c.sendCommand(cmd);
         c.finishConnection();
     }
@@ -622,8 +676,10 @@ public class NIOWorkerNode extends COMPSsWorker {
                 path = ProtocolType.FILE_URI.getSchema() + this.config.getSandboxWorkingDir() + name;
                 break;
             case OBJECT_T:
-            case COLLECTION_T:
                 path = ProtocolType.OBJECT_URI.getSchema() + name;
+                break;
+            case COLLECTION_T:
+                path = ProtocolType.OBJECT_URI.getSchema() + this.config.getSandboxWorkingDir() + name;
                 break;
             case STREAM_T:
                 path = ProtocolType.STREAM_URI.getSchema() + name;
@@ -668,6 +724,7 @@ public class NIOWorkerNode extends COMPSsWorker {
 
                 Connection c = NIOAgent.getTransferManager().startConnection(node);
                 CommandGeneratePackage cmd = new CommandGeneratePackage();
+                NIOAgent.registerOngoingCommand(c, cmd);
                 c.sendCommand(cmd);
                 c.receive();
                 c.finishConnection();
@@ -692,6 +749,7 @@ public class NIOWorkerNode extends COMPSsWorker {
 
             Connection c = NIOAgent.getTransferManager().startConnection(node);
             CommandGenerateWorkerDebugFiles cmd = new CommandGenerateWorkerDebugFiles();
+            NIOAgent.registerOngoingCommand(c, cmd);
             c.sendCommand(cmd);
             c.receive();
             c.finishConnection();
@@ -719,6 +777,24 @@ public class NIOWorkerNode extends COMPSsWorker {
         NIOTask t = job.prepareJob();
         CommandNewTask cmd = new CommandNewTask(t, obsolete);
         Connection c = NIOAgent.getTransferManager().startConnection(node);
+        NIOAgent.registerOngoingCommand(c, cmd);
+        c.sendCommand(cmd);
+        c.finishConnection();
+    }
+
+    /**
+     * Cancels a running task in the worker.
+     *
+     * @param job Job to submit.
+     */
+    public void cancelTask(NIOJob job) throws UnstartedNodeException {
+        if (node == null) {
+            throw new UnstartedNodeException();
+        }
+        LOGGER.debug("Sending task cancellation command to worker");
+        CommandCancelTask cmd = new CommandCancelTask(job.getJobId());
+        Connection c = NIOAgent.getTransferManager().startConnection(node);
+        NIOAgent.registerOngoingCommand(c, cmd);
         c.sendCommand(cmd);
         c.finishConnection();
     }
@@ -739,6 +815,7 @@ public class NIOWorkerNode extends COMPSsWorker {
         CommandResourcesIncrease cmd = new CommandResourcesIncrease(mrd);
         Connection c = NIOAgent.getTransferManager().startConnection(this.node);
         this.commManager.registerPendingResourceUpdateConfirmation(c, sem);
+        NIOAgent.registerOngoingCommand(c, cmd);
         c.sendCommand(cmd);
         c.receive();
         try {
@@ -755,6 +832,7 @@ public class NIOWorkerNode extends COMPSsWorker {
         CommandResourcesReduce cmd = new CommandResourcesReduce(mrd);
         Connection c = NIOAgent.getTransferManager().startConnection(this.node);
         this.commManager.registerPendingResourceUpdateConfirmation(c, sem);
+        NIOAgent.registerOngoingCommand(c, cmd);
         c.sendCommand(cmd);
         c.receive();
         try {
@@ -778,5 +856,20 @@ public class NIOWorkerNode extends COMPSsWorker {
             }
         }
         return data;
+    }
+
+    @Override
+    public void removeObsoletes(List<MultiURI> obsoletes) {
+        LOGGER.debug("Sending command to remove obsoletes for " + this.getHost());
+        List<String> obsoleteRenamings = new LinkedList<>();
+        for (MultiURI u : obsoletes) {
+            obsoleteRenamings.add(u.getPath());
+        }
+        Connection c = NIOAgent.getTransferManager().startConnection(node);
+        CommandRemoveObsoletes cmd = new CommandRemoveObsoletes(obsoleteRenamings);
+        NIOAgent.registerOngoingCommand(c, cmd);
+        c.sendCommand(cmd);
+        c.finishConnection();
+
     }
 }

@@ -10,7 +10,7 @@
     <parent>
         <groupId>es.bsc.compss</groupId>
         <artifactId>compss-runtime</artifactId>
-        <version>2.5.rc1907</version>
+        <version>2.6.rc2003</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -34,6 +34,10 @@
     <modules>
         <module>commons</module>
         <!-- <module>fullGraphScheduler</module> -->
+        <module>newFifoScheduler</module>
+        <module>newLifoScheduler</module>
+        <module>newReadyScheduler</module>
+        <module>newFifoDataScheduler</module>
         <module>multiobjectiveScheduler</module>
         <module>readyScheduler</module>
         <module>dataLocalityScheduler</module>

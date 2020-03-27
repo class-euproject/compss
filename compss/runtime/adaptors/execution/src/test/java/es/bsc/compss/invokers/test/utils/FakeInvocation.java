@@ -17,6 +17,7 @@
 package es.bsc.compss.invokers.test.utils;
 
 import es.bsc.compss.COMPSsConstants.Lang;
+import es.bsc.compss.types.annotations.parameter.OnFailure;
 import es.bsc.compss.types.execution.Invocation;
 import es.bsc.compss.types.execution.InvocationParam;
 import es.bsc.compss.types.implementations.AbstractMethodImplementation;
@@ -76,8 +77,13 @@ public class FakeInvocation implements Invocation {
     }
 
     @Override
-    public int getTimeOut() {
-        return 0;
+    public OnFailure getOnFailure() {
+        return OnFailure.RETRY;
+    }
+
+    @Override
+    public long getTimeOut() {
+        return 0L;
     }
 
     @Override

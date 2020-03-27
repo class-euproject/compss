@@ -32,6 +32,7 @@ import es.bsc.compss.worker.COMPSsException;
 
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 
 public class OptimizationAction extends AllocatableAction {
@@ -120,6 +121,11 @@ public class OptimizationAction extends AllocatableAction {
     }
 
     @Override
+    public long getGroupPriority() {
+        return ACTION_OPTIMIZE;
+    }
+
+    @Override
     public OnFailure getOnFailure() {
         return OnFailure.RETRY;
     }
@@ -179,5 +185,15 @@ public class OptimizationAction extends AllocatableAction {
     @Override
     public boolean checkIfCanceled(AllocatableAction aa) {
         return false;
+    }
+
+    @Override
+    protected void stopAction() throws Exception {
+    }
+
+    @Override
+    public List<ResourceScheduler<?>> tryToSchedule(Score actionScore, Set<ResourceScheduler<?>> availableWorkers)
+        throws BlockedActionException, UnassignedActionException {
+        return null;
     }
 }

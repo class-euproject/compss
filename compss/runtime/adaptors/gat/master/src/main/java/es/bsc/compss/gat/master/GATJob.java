@@ -24,7 +24,6 @@ import es.bsc.compss.types.TaskDescription;
 import es.bsc.compss.types.annotations.Constants;
 import es.bsc.compss.types.annotations.parameter.DataType;
 import es.bsc.compss.types.data.DataAccessId;
-import es.bsc.compss.types.data.LogicalData;
 import es.bsc.compss.types.data.location.ProtocolType;
 import es.bsc.compss.types.exceptions.LangNotDefinedException;
 import es.bsc.compss.types.implementations.AbstractMethodImplementation;
@@ -45,6 +44,7 @@ import es.bsc.compss.types.parameter.DependencyParameter;
 import es.bsc.compss.types.parameter.Parameter;
 import es.bsc.compss.types.resources.MethodResourceDescription;
 import es.bsc.compss.types.resources.Resource;
+import es.bsc.compss.types.uri.MultiURI;
 import es.bsc.compss.util.ErrorManager;
 import es.bsc.compss.util.TraceEvent;
 import es.bsc.compss.util.Tracer;
@@ -197,7 +197,7 @@ public class GATJob extends es.bsc.compss.types.job.Job<GATWorkerNode> implement
         LOGGER.debug("GAT stopping all jobs");
         for (GATJob job : RUNNING_JOBS) {
             try {
-                job.stop();
+                job.cancelJob();
             } catch (Exception e) {
                 LOGGER.error(TERM_ERR, e);
             }
@@ -205,7 +205,7 @@ public class GATJob extends es.bsc.compss.types.job.Job<GATWorkerNode> implement
     }
 
     @Override
-    public void stop() throws Exception {
+    public void cancelJob() throws Exception {
         LOGGER.debug("GAT stop job " + this.jobId);
         if (gatJob != null) {
             MetricDefinition md = gatJob.getMetricDefinitionByName(JOB_STATUS);
@@ -320,11 +320,11 @@ public class GATJob extends es.bsc.compss.types.job.Job<GATWorkerNode> implement
         lArgs.add(String.valueOf(Comm.getStreamingPort()));
         lArgs.add(String.valueOf(DEBUG));
 
-        LogicalData[] obsoleteFiles = getResource().pollObsoletes();
+        List<MultiURI> obsoleteFiles = getResource().pollObsoletes();
         if (obsoleteFiles != null) {
-            lArgs.add("" + obsoleteFiles.length);
-            for (LogicalData ld : obsoleteFiles) {
-                String renaming = ld.getName();
+            lArgs.add("" + obsoleteFiles.size());
+            for (MultiURI u : obsoleteFiles) {
+                String renaming = u.getPath();
                 lArgs.add(renaming);
             }
         } else {
@@ -449,6 +449,9 @@ public class GATJob extends es.bsc.compss.types.job.Job<GATWorkerNode> implement
         // Job arguments
         lArgs.add(String.valueOf(this.jobId));
         lArgs.add(String.valueOf(this.taskId));
+
+        // Job time-out and on-failure
+        lArgs.add(String.valueOf(getTimeOut()));
 
         // Slave nodes and cus description
         lArgs.add(String.valueOf(slaveWorkersNodeNames.size()));
@@ -600,6 +603,9 @@ public class GATJob extends es.bsc.compss.types.job.Job<GATWorkerNode> implement
 
         String paramName = param.getName();
         paramDesc.add((paramName == null) ? "null" : (paramName.isEmpty()) ? "null" : paramName);
+
+        String conType = param.getContentType();
+        paramDesc.add((conType == null) ? "null" : (conType.isEmpty()) ? "null" : conType);
 
         switch (type) {
             case FILE_T:

@@ -157,7 +157,7 @@ public class Comm {
             // Server
             String compssMaster = appHost.getName();
             String dsMaster;
-            if (STREAMING_MASTER_NAME == null || STREAMING_MASTER_NAME == compssMaster) {
+            if (STREAMING_MASTER_NAME == null || STREAMING_MASTER_NAME.equals(compssMaster)) {
                 // Streaming master name not defined or is the same than the COMPSs master
                 // Start server on COMPSs Master
                 dsMaster = compssMaster;
@@ -325,7 +325,8 @@ public class Comm {
             }
 
             // Stop stream server if this runtime is the owner
-            if (STREAMING_MASTER_NAME == null || STREAMING_MASTER_NAME == appHost.getName()) {
+            String compssMaster = appHost.getName();
+            if (STREAMING_MASTER_NAME == null || STREAMING_MASTER_NAME.equals(compssMaster)) {
                 LOGGER.debug("Stopping Streaming Server...");
                 DistroStreamServer.setStop();
             } else {
@@ -345,8 +346,8 @@ public class Comm {
         }
 
         if (Tracer.extraeEnabled()) {
-            // Emit last EVENT_END event
-            Tracer.emitEvent(Tracer.EVENT_END, Tracer.getRuntimeEventsType());
+            // Emit last EVENT_END event for STOP
+            Tracer.emitEvent(Tracer.EVENT_END, TraceEvent.STOP.getType());
         }
 
         // Stop tracing system
@@ -601,6 +602,16 @@ public class Comm {
     public static Set<LogicalData> getAllData(Resource host) {
         // logger.debug("Get all data from host: " + host.getName());
         return host.getAllDataFromHost();
+    }
+
+    /**
+     * Removes the data with id {@code renaming} but mantains the data values on files/remote sources .
+     *
+     * @param renaming Data Id.
+     */
+    public static synchronized void removeDataKeepingValue(String renaming) {
+        LOGGER.debug("Removing data " + renaming);
+        DATA.remove(renaming);
     }
 
     /**

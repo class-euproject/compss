@@ -201,14 +201,14 @@ public interface COMPSsRuntime {
      * @param groupName Group name.
      * @param implicitBarrier {@literal true}, if the task group requires a barrier
      */
-    public void openTaskGroup(String groupName, boolean implicitBarrier);
+    public void openTaskGroup(String groupName, boolean implicitBarrier, Long appId);
 
     /**
      * Closes an existing task group.
      *
      * @param groupName Group name.
      */
-    public void closeTaskGroup(String groupName);
+    public void closeTaskGroup(String groupName, Long appId);
 
     /*
      * *****************************************************************************************************************
@@ -250,6 +250,15 @@ public interface COMPSsRuntime {
     public boolean deleteFile(String fileName);
 
     /**
+     * Deletes the specified version of a file.
+     *
+     * @param fileName File name.
+     * @param waitForData Flag to indicate if we want to wait for the data ready before removing
+     * @return true if the {@code fileName} has been deleted, false otherwise.
+     */
+    public boolean deleteFile(String fileName, boolean waitForData);
+
+    /**
      * Returns last version of file with its original name.
      *
      * @param appId Application id.
@@ -272,6 +281,11 @@ public interface COMPSsRuntime {
      * @return true if the {@code bindingObjectName} has been deleted, false otherwise.
      */
     public boolean deleteBindingObject(String bindingObjectName);
+
+    /**
+     * Cancels all tasks of the application.
+     */
+    public void cancelApplicationTasks(Long appId);
 
     /*
      * *****************************************************************************************************************

@@ -9,7 +9,7 @@
     <parent>
         <groupId>es.bsc.compss</groupId>
         <artifactId>compss-adaptors-agent-comm</artifactId>
-        <version>2.5.rc1907</version>
+        <version>2.6.rc2003</version>
         <relativePath>..</relativePath>
     </parent>
 
@@ -101,7 +101,7 @@
             <!--Copy compss-adaptors-agent-comm-master.jar to adaptor basedir -->
             <plugin>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>2.6</version>
+                <version>${maven-resources-plugin.version}</version> 
                 <executions>
                     <execution>
                         <id>copy-final-jar</id>

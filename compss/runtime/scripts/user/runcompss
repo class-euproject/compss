@@ -22,7 +22,7 @@ DEFAULT_GRAPH_ARGUMENT=true
 
 DEFAULT_TRACING=false
 DEFAULT_TRACING_ARGUMENT=true #-3:arm-ddt, -2:arm-map, -1:scorep, 0:deactivated, 1:basic, 2:advanced
-
+DEFAULT_TRACE_LABEL="None"
 DEFAULT_MONITORING_INTERVAL=0
 DEFAULT_MONITORING_INTERVAL_ARGUMENT=2000
 
@@ -140,6 +140,8 @@ show_opts() {
   Advanced options:
     --extrae_config_file=<path>             Sets a custom extrae config file. Must be in a shared disk between all COMPSs workers.
                                             Default: ${DEFAULT_EXTRAE_CONFIG_FILE}
+    --trace_label=<string>	            Add a label in the generated trace file. Only used in the case of tracing is activated.
+    					    Default: None                                        
     --comm=<ClassName>                      Class that implements the adaptor for communications
                                             Supported adaptors: es.bsc.compss.nio.master.NIOAdaptor | es.bsc.compss.gat.master.GATAdaptor
                                             Default: ${DEFAULT_COMMUNICATION_ADAPTOR}
@@ -155,9 +157,12 @@ show_opts() {
     --streaming_master_port=<int>           Use an specific port for the streaming master.
                                             Default: null
     --scheduler=<className>                 Class that implements the Scheduler for COMPSs
-                                            Supported schedulers: es.bsc.compss.scheduler.fullGraphScheduler.FullGraphScheduler
-                                                                  | es.bsc.compss.scheduler.fifoScheduler.FIFOScheduler
-                                                                  | es.bsc.compss.scheduler.resourceEmptyScheduler.ResourceEmptyScheduler
+                                            Supported schedulers: es.bsc.compss.scheduler.data.DataScheduler
+                                                    | es.bsc.compss.scheduler.fifo.FIFOScheduler
+                                                    | es.bsc.compss.scheduler.fifodata.FIFODataScheduler
+                                                    | es.bsc.compss.scheduler.lifo.LIFOScheduler
+                                                    | es.bsc.compss.scheduler.loadbalancing.LoadBalancingScheduler
+                                                    | es.bsc.compss.components.impl.TaskScheduler
                                             Default: ${DEFAULT_SCHEDULER}
     --scheduler_config_file=<path>          Path to the file which contains the scheduler configuration.
                                             Default: Empty
@@ -208,6 +213,8 @@ show_opts() {
                                             Default: $DEFAULT_PERSISTENT_WORKER_C
     --enable_external_adaptation=<bool>     Enable external adaptation. This option will disable the Resource Optimizer.
                                             Default: false
+    --gen_coredump			    Enable master coredump generation
+					    Default: false
     --python_interpreter=<string>           Python interpreter to use (python/python2/python3).
                                             Default: $DEFAULT_PYTHON_INTERPRETER Version: ${DEFAULT_PYTHON_VERSION}
     --python_propagate_virtual_environment=<true>  Propagate the master virtual environment to the workers (true/false).
@@ -245,18 +252,18 @@ EOT
 }
 
 show_version() {
-  echo "COMPSs version 2.5 Freesia"
+  echo "COMPSs version 2.6 Gardenia"
   echo " "
 }
 
 show_full_version() {
   cat << EOF
-        .-~~-.--.            _____        _____
-       :         )          |____ \\      | ____|
- .~ ~ -.\\       /.- ~~ .     ___) |     | |___
- >       \`.   .'       <    / ___/      |____ \
-(         .- -.         )   | |____   _   ____) |
- \`- -.-~  \`- -'  ~-.- -'  |______| |_| |_____/
+        .-~~-.--.            _____           __
+       :         )          |____ \\         / /
+ .~ ~ -.\\       /.- ~~ .      ___) |       / /__
+ >       \`.   .'       <     / ___/       /  _  \\
+(         .- -.         )   | |____   _  |  |_|  |
+ \`- -.-~  \`- -'  ~-.- -'    |______| |_|  \\_____/
    (        :        )           _ _ .-:
     ~--.    :    .--~        .-~  .-~  }
         ~-.-^-.-~ \\       .~  .-~   .~
@@ -274,12 +281,10 @@ EOF
 show_flower() {
   cat << EOF
 
-Freesia
-
-Freesia is a genus of herbaceous perennial flowering plants in the family Iridaceae, first described as a genus in 1866 by Christian Friedrich Ecklon (1886) and named after the German botanist and medical practitioner, Friedrich Freese (1795-1876). They are herbaceous plants which grow from a conical corm 1–2.5 cm diameter, which sends up a tuft of narrow leaves 10–30 cm long, and a sparsely branched stem 10–40 cm tall bearing a few leaves and a loose one-sided spike of flowers with six tepals. Many species have fragrant narrowly funnel-shaped flowers, although those formerly placed in the genus Anomatheca, such as F. laxa, have flat flowers.
+Gardenia is a genus of flowering plants in the coffee family, Rubiaceae, native to the tropical and subtropical regions of Africa, Asia, Madagascar and Pacific Islands.The genus was named by Carl Linnaeus and John Ellis after Dr. Alexander Garden (1730–1791), a Scottish-born American naturalist.They are evergreen shrubs and small trees growing to 1–15 metres (3.3–49.2 ft) tall. The leaves are opposite or in whorls of three or four, 5–50 centimetres (2.0–19.7 in) long and 3–25 centimetres (1.2–9.8 in) broad, dark green and glossy with a leathery texture. The flowers are solitary or in small clusters, white, or pale yellow, with a tubular-based corolla with 5–12 lobes (petals) from 5 to 12 centimetres (2.0 to 4.7 in) diameter. Flowering is from about mid-spring to mid-summer, and many species are strongly scented. 
 
 Check more information:
-   https://en.wikipedia.org/wiki/Freesia
+   https://en.wikipedia.org/wiki/Gardenia
 
 EOF
 }
@@ -287,14 +292,14 @@ EOF
 show_recipe() {
   cat << EOF
 
-Freesia  - Cocktail
+Gardenia  - Cocktail
 
-  3 Oz. Freesia infused Vya Whisper Dry
-  2 Oz. Cucumber-mint juice
-  1/2 oz Freshly squeezed lemon juice
-  1/2 oz Agave Nectar
+1 oz of Gin
+1 oz of Pineapple Juice
+1 oz of double cream
+1 tsp of grenadine syrup
 
-Puree your cucumber with the mint leaves. In a cocktail shaker, combine cucumber-mint juice, lemon juice, agave nectar, Freesia Vya Whisper Dry Vermouth and ice. Shake and then strain. Serve over ice, garnish with Freesia bud and a mint sprig.
+Shake and strain into a saucer. Garnish with a pineapple chunk and a sprig of mint, and serve. 
 
 EOF
 }
@@ -312,6 +317,7 @@ display_error() {
 # Displays runtime/application errors
 error_msg() {
   local error_msg=$1
+  local error_code=$2
 
   # Display error
   echo
@@ -319,7 +325,7 @@ error_msg() {
   echo
 
   # Exit
-  exit 1
+  exit ${error_code}
 }
 
 # Checks if a command exists
@@ -516,6 +522,10 @@ get_args() {
             # Custom extrae config file
             custom_extrae_config_file=${OPTARG//extrae_config_file=/}
             ;;
+          trace_label=*)
+            # Custom trace_label
+            trace_label=${OPTARG//trace_label=/}
+            ;;
 	      monitoring=*)
 	        # Value between monitor steps (ms)
 	        monitoring=${OPTARG//monitoring=/}
@@ -646,12 +656,16 @@ get_args() {
             # Enable or disable the virtual environment propagation
             python_mpi_worker=${OPTARG//python_mpi_worker=/}
             ;;
-  	      *)
-	        # Flag didn't match any patern. Raise exception
-	        display_error "Bad argument: $OPTARG"
-	        ;;
-	    esac
+	      gen_coredump)
+            # Enable coredump generation
+            gen_core=true
+            ;;
+  	  *)
+	    # Flag didn't match any patern. Raise exception
+	    display_error "Bad argument: $OPTARG"
 	    ;;
+	  esac
+	  ;;
       *)
 	    # Flag didn't match any patern. End of COMPSs flags
 	    break
@@ -764,6 +778,10 @@ check_args() {
   # TRACING file option
   if [ -z "${custom_extrae_config_file}" ]; then
     custom_extrae_config_file=${DEFAULT_EXTRAE_CONFIG_FILE}
+  fi
+  
+  if [ -z "${trace_label}" ]; then
+    trace_label=${DEFAULT_TRACE_LABEL}
   fi
 
   # Tracing level
@@ -1052,14 +1070,17 @@ execute_runtime() {
       # Restore classpath
       export CLASSPATH=${backup_classpath}
     else
-      error_msg "${STREAM_BACKEND_ERROR}"
+      error_msg "${STREAM_BACKEND_ERROR}" 1
     fi
     echo "[  INFO] Streaming Backend ready"
   fi
 
   # Init COMPSs
   echo -e "\\n----------------- Executing $appName --------------------------\\n"
-
+  if [ -n "${gen_core}" ]; then
+    echo "[RUNCOMPSS] Setting coredump generation." 
+    ulimit -c unlimited
+  fi
   # Launch application execution
   if [ $lang = java ]; then
     add_jvm_opts_java
@@ -1147,6 +1168,7 @@ ${jvm_debugger_opts}
 -Dcompss.graph=${graph}
 -Dcompss.monitor=${monitoring}
 -Dcompss.tracing=${tracing}
+-Dcompss.trace.label=${trace_label}
 -Dcompss.extrae.file=${custom_extrae_config_file}
 -Dcompss.comm=${comm}
 -Dcompss.conn=${conn}
@@ -1231,7 +1253,7 @@ exec_java() {
       unset LD_PRELOAD  # no tracing check because if not set does nothing
   fi
   if [ $endCode -ne 0 ]; then
-    error_msg "${RUNTIME_ERROR}"
+    error_msg "${RUNTIME_ERROR}" ${endCode}
   fi
 }
 
@@ -1275,7 +1297,7 @@ exec_c() {
       unset LD_PRELOAD  # no tracing check because if not set does nothing
   fi
   if [ $endCode -ne 0 ]; then
-    error_msg "${RUNTIME_ERROR}"
+    error_msg "${RUNTIME_ERROR}" ${endCode}
   fi
 }
 
@@ -1285,7 +1307,7 @@ exec_python() {
   cp=$cp:$storageApi
 
   if ! command_exists $python_interpreter ; then
-    error_msg "ERROR: Python interpreter $python_interpreter does not exist."
+    error_msg "ERROR: Python interpreter $python_interpreter does not exist." 1
   fi
 
   # Check if installed and export needed variables if needed
@@ -1293,7 +1315,7 @@ exec_python() {
     PYCOMPSS_HOME=${COMPSS_HOME}/Bindings/python/$python_version
     export PYTHONPATH=${PYCOMPSS_HOME}:$PYTHONPATH
   else
-    error_msg "PyCOMPSs for Python $python_version not installed."
+    error_msg "PyCOMPSs for Python $python_version not installed." 1
   fi
 
   # Look for the JVM Library
@@ -1322,14 +1344,13 @@ exec_python() {
     export LD_PRELOAD=${EXTRAE_LIB}/libpttrace.so
   fi
 
-  # shellcheck disable=SC2086
   $python_interpreter ${py_flags} "$PYCOMPSS_HOME"/pycompss/runtime/launch.py ${log_level} ${PyObject_serialize} ${storageConf} ${streaming} ${streaming_master_name} ${streaming_master_port} "${fullAppPath}" ${application_args}
   endCode=$?
   if [ $tracing -gt 0 ]; then
       unset LD_PRELOAD
   fi
   if [ $endCode -ne 0 ]; then
-    error_msg "${RUNTIME_ERROR}"
+    error_msg "${RUNTIME_ERROR}" ${endCode}
   fi
 }
 

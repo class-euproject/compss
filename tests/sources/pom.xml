@@ -11,7 +11,7 @@
     <parent>
         <groupId>es.bsc.compss</groupId>
         <artifactId>compss-trunk</artifactId>
-        <version>2.5.rc1907</version>
+        <version>2.6.rc2003</version>
         <relativePath>../../</relativePath>
     </parent>
 
@@ -187,10 +187,12 @@
 
     <!-- SUB-MODULES -->
     <modules>
+        <module>agents</module>
         <module>autoparallel</module>
         <module>c</module>
         <module>cloud</module>
-        <module>fault_tolerance</module>
+	<module>fault_tolerance</module>
+	<module>gat</module>
         <module>java</module>
         <module>performance</module>
         <module>pscos</module>

@@ -12,6 +12,8 @@ RUN apt-get update && \
 	git  \
     vim \
     wget \
+    jq \
+    curl \
     openssh-server \
     sudo && \
 # Create Jenkins User
@@ -66,6 +68,8 @@ RUN apt-get update && \
     rm gradle-5.4.1-bin.zip && \
     ln -s /opt/gradle-5.4.1 /opt/gradle && \
     echo "GRADLE_HOME=/opt/gradle" >> /etc/environment && \
+    pip2 install kafka-python && \
+    pip3 install kafka-python && \
 # Testing dependencies
     pip3 install enum34 tabulate && \
 # Numba dependencies

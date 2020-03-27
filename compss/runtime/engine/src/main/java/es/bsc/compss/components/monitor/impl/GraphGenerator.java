@@ -51,6 +51,10 @@ public class GraphGenerator {
             : false;
     private static final boolean GRAPH_GENERATOR_ENABLED = MONITOR_ENABLED || DRAW_GRAPH;
 
+    // Stream dot description
+    private static final String STREAM_DOT_DESCRIPTION = "[shape=rect style=\"rounded,filled\" width=0"
+        + " height=0 margin=0.1 fontsize=10 fillcolor=\"#a9a9a9\" fontcolor=\"#000000\"]";
+
     // Graph filenames constants
     private static final String CURRENT_GRAPH_FILENAME = "current_graph.dot";
     private static final String COMPLETE_GRAPH_FILENAME = "complete_graph.dot";
@@ -299,6 +303,21 @@ public class GraphGenerator {
     }
 
     /**
+     * Adds a new stream node to the graph.
+     * 
+     * @param label Stream node label name.
+     */
+    public void addStreamToGraph(String label) {
+        try {
+            full_graph.newLine();
+            String dotDescription = label + STREAM_DOT_DESCRIPTION;
+            full_graph.write(dotDescription);
+        } catch (IOException e) {
+            LOGGER.error(ERROR_ADDING_DATA, e);
+        }
+    }
+
+    /**
      * Adds an edge to the graph from {@code src} to {@code tgt} with label {@code label}.
      * 
      * @param src Source node.
@@ -354,20 +373,34 @@ public class GraphGenerator {
      * @param tgt Node to which the task is dependent.
      * @param label Data Id and version of the dependency.
      * @param identifier Commutative group identifier.
+     * @param clusterType Commutative group or task group identifier.
+     * @param edgeType Edge type.
      */
-    public void addEdgeToGraphFromCommutative(String src, String tgt, String label, String identifier) {
-        // Build message
-        StringBuilder sb = new StringBuilder();
-        sb.append(src).append(" -> ").append(tgt);
-        if (!label.isEmpty()) {
-            sb.append("[ label=\"d").append(label).append("\" ]");
-        }
-        sb.append("[ ltail=\"clusterCommutative").append(identifier).append("\" ];");
-
-        // Print message
+    public void addEdgeToGraphFromGroup(String src, String tgt, String label, String identifier, String clusterType,
+        EdgeType edgeType) {
         try {
+            // Build the edge properties tag
+            StringBuilder edgeProperties = new StringBuilder();
+            String edgeTypeProps = edgeType.getProperties();
+            if (!edgeTypeProps.isEmpty() || !label.isEmpty()) {
+                edgeProperties.append(" [");
+                if (!edgeTypeProps.isEmpty()) {
+                    edgeProperties.append(edgeTypeProps);
+                    if (!label.isEmpty()) {
+                        edgeProperties.append(", ");
+                    }
+                }
+                if (!label.isEmpty()) {
+                    edgeProperties.append("label=\"d").append(label).append("\"");
+                }
+                edgeProperties.append("]");
+            }
+            edgeProperties.append("[ ltail=\"").append(clusterType).append(identifier).append("\" ]");
+            edgeProperties.append(";");
+
+            // Print message
             full_graph.newLine();
-            full_graph.write(sb.toString());
+            full_graph.write(src + " -> " + tgt + edgeProperties.toString());
         } catch (IOException e) {
             LOGGER.error(ERROR_ADDING_EDGE, e);
         }

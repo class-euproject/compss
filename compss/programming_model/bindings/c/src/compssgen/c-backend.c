@@ -28,8 +28,8 @@
 #include "backendlib.h"
 #include "types.h"
 
-#define BUFF_ELEMENTS 6
-#define ARGS_OFFSET 4
+#define BUFF_ELEMENTS 7
+#define ARGS_OFFSET 5
 typedef int bool;
 enum { false, true };
 
@@ -1175,6 +1175,8 @@ static void add_parameter_to_taskbuffer(FILE *outFile, char* name, enum datatype
     fprintf(outFile, "%s arrayObjs[%d] = &param%d;\n", tabs, i+4, i+4);
     fprintf(outFile, "%s char *param%d = \"null\";\n", tabs, i+5);
     fprintf(outFile, "%s arrayObjs[%d] = &param%d;\n", tabs, i+5, i+5);
+    fprintf(outFile, "%s char *param%d = \"null\";\n", tabs, i+6);
+    fprintf(outFile, "%s arrayObjs[%d] = &param%d;\n", tabs, i+6, i+6);
 }
 
 static void add_object_or_array_arg_master_treatment(FILE *outFile, argument *arg, int i, Types current_types) {
@@ -1196,7 +1198,7 @@ static void add_object_or_array_arg_master_treatment(FILE *outFile, argument *ar
             fprintf(outFile, "\t\t %s = new %s[%s];\n",arg->name, arg->classname, arg->elements);
         }
     } else {
-        fprintf(outFile, "\t\t printf(\"ERROR: %s is null.\");\n\t\t fflush(NULL);\n\t\t GS_Off();\n\t\t exit(1);", arg->name);
+        fprintf(outFile, "\t\t printf(\"ERROR: %s is null.\");\n\t\t fflush(NULL);\n\t\t GS_Off(1);\n\t\t exit(1);", arg->name);
     }
     fprintf(outFile, "\t }\n");
     fprintf(outFile, "\t // Add object treatment for argument %s;\n", arg->name);
@@ -1341,7 +1343,7 @@ static void generate_parameter_marshalling(FILE *outFile, function *func, Types 
             ret.elements="0";
         }
 
-        fprintf(outFile, "\t %s *%s;\n", ret.classname, ret.name);
+        fprintf(outFile, "\t %s *%s = NULL;\n", ret.classname, ret.name);
 
         treat_master_argument(outFile, &ret, i, current_types);
 

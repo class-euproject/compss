@@ -19,6 +19,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 
 public class Action extends AllocatableAction {
@@ -118,7 +119,7 @@ public class Action extends AllocatableAction {
     @Override
     public <T extends WorkerResourceDescription> Score schedulingScore(ResourceScheduler<T> targetWorker,
         Score actionScore) {
-        return new Score(0, 0, 0, 0);
+        return new Score(0, 0, 0, 0, 0);
     }
 
     @Override
@@ -162,12 +163,17 @@ public class Action extends AllocatableAction {
 
     @Override
     public Integer getCoreId() {
-        return core.getCoreId();
+        return this.core.getCoreId();
     }
 
     @Override
     public int getPriority() {
         return 0;
+    }
+
+    @Override
+    public long getGroupPriority() {
+        return ACTION_SINGLE;
     }
 
     @Override
@@ -188,5 +194,15 @@ public class Action extends AllocatableAction {
     @Override
     public boolean checkIfCanceled(AllocatableAction aa) {
         return false;
+    }
+
+    @Override
+    protected void stopAction() throws Exception {
+    }
+
+    @Override
+    public List<ResourceScheduler<?>> tryToSchedule(Score actionScore, Set<ResourceScheduler<?>> availableWorkers)
+        throws BlockedActionException, UnassignedActionException {
+        return null;
     }
 }

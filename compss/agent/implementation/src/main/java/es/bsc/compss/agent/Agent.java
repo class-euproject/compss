@@ -48,7 +48,6 @@ import es.bsc.compss.types.resources.configuration.MethodConfiguration;
 import es.bsc.compss.types.uri.SimpleURI;
 import es.bsc.compss.util.ErrorManager;
 import es.bsc.compss.util.ResourceManager;
-import es.bsc.compss.util.parsers.ITFParser;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -109,22 +108,30 @@ public class Agent {
         RUNTIME = new COMPSsRuntimeImpl();
         RUNTIME.setObjectRegistry(new ObjectRegistry(RUNTIME));
         RUNTIME.setStreamRegistry(new StreamRegistry(RUNTIME));
+
+        INTERFACES = new LinkedList<>();
+    }
+
+
+    /**
+     * Start the runtime within the Agent and sets it up to allow the execution of COMPSs methods.
+     */
+    public static void start() {
+
         RUNTIME.startIT();
+
         CoreElementDefinition ced = new CoreElementDefinition();
         ced.setCeSignature(LOADER_SIGNATURE);
         MethodResourceDescription mrd = new MethodResourceDescription("");
         for (Processor p : mrd.getProcessors()) {
-            p.setName("LocalProcessor");
+            p.setName("MainProcessor");
         }
         ImplementationDefinition<?> implDef =
             ImplementationDefinition.defineImplementation("METHOD", LOADER_SIGNATURE + LOADER_CLASS_NAME,
                 new MethodResourceDescription(""), LOADER_CLASS_NAME, LOADER_METHOD_NAME);
         ced.addImplementation(implDef);
         RUNTIME.registerCoreElement(ced);
-
-        INTERFACES = new LinkedList<>();
     }
-
 
     /**
      * Request the execution of a method tasks and detect possible nested tasks.
@@ -149,16 +156,6 @@ public class Agent {
         monitor.setAppId(mainAppId);
 
         try {
-            Class<?> cei = Class.forName(ceiClass);
-            List<CoreElementDefinition> ceds = ITFParser.parseITFMethods(cei);
-            for (CoreElementDefinition ced : ceds) {
-                RUNTIME.registerCoreElement(ced);
-            }
-        } catch (ClassNotFoundException cnfe) {
-            throw new AgentException("Could not find class " + ceiClass + " to detect internal methods.");
-        }
-
-        try {
             int taskParamsCount = arguments.length;
             if (target != null) {
                 taskParamsCount++;
@@ -166,7 +163,7 @@ public class Agent {
             taskParamsCount += results.length;
             int loadParamsCount = 7;
             int totalParamsCount = taskParamsCount + loadParamsCount;
-            Object[] params = new Object[6 * totalParamsCount];
+            Object[] params = new Object[7 * totalParamsCount];
 
             Object[] loadParams = new Object[] { RUNTIME,
                 DataType.OBJECT_T,
@@ -174,36 +171,42 @@ public class Agent {
                 StdIOStream.UNSPECIFIED,
                 "",
                 "runtime", // Runtime API
+                "",
                 RUNTIME,
                 DataType.OBJECT_T,
                 Direction.IN,
                 StdIOStream.UNSPECIFIED,
                 "",
                 "api", // Loader API
+                "",
                 ceiClass,
                 DataType.STRING_T,
                 Direction.IN,
                 StdIOStream.UNSPECIFIED,
                 "",
                 "ceiClass", // CEI
+                "",
                 appId,
                 DataType.LONG_T,
                 Direction.IN,
                 StdIOStream.UNSPECIFIED,
                 "",
                 "appId", // Nested tasks App ID
+                "",
                 className,
                 DataType.STRING_T,
                 Direction.IN,
                 StdIOStream.UNSPECIFIED,
                 "",
                 "className", // Class name
+                "",
                 methodName,
                 DataType.STRING_T,
                 Direction.IN,
                 StdIOStream.UNSPECIFIED,
                 "",
                 "methodName", // Method name
+                "",
                 /*
                  * When passing a single parameter with array type to the loaded method, the Object... parameter of the
                  * load method assumes that each element of the array is a different parameter ( any array matches
@@ -217,20 +220,20 @@ public class Agent {
                 StdIOStream.UNSPECIFIED,
                 "",
                 "fakeParam", // Fake param
-            };
+                "" };
 
             System.arraycopy(loadParams, 0, params, 0, loadParams.length);
             int position = loadParams.length;
             for (ApplicationParameter param : arguments) {
                 LOGGER.debug("\t Parameter:" + param.getParamName());
                 addParameterToTaskArguments(param, position, params);
-                position += 6;
+                position += 7;
             }
 
             if (target != null) {
                 LOGGER.debug("\t Target:" + target.getParamName());
                 addParameterToTaskArguments(target, position, params);
-                position += 6;
+                position += 7;
             }
 
             for (ApplicationParameter param : results) {
@@ -240,7 +243,8 @@ public class Agent {
                 params[position + 3] = param.getStdIOStream();
                 params[position + 4] = param.getPrefix();
                 params[position + 5] = param.getParamName();
-                position += 6;
+                params[position + 6] = param.getContentType();
+                position += 7;
             }
 
             RUNTIME.executeTask(mainAppId, // Task application ID
@@ -276,6 +280,17 @@ public class Agent {
     public static long runTask(Lang lang, String className, String methodName, ApplicationParameter[] arguments,
         ApplicationParameter target, ApplicationParameter[] results, MethodResourceDescription requirements,
         AppMonitor monitor) throws AgentException {
+        System.out.println("");
+        System.out.println("");
+        System.out.println("");
+        System.out.println("");
+        System.out.println("");
+        System.out.println("New request to run as a " + lang + " task " + className + "." + methodName);
+        System.out.println("Parameters: ");
+        for (ApplicationParameter param : arguments) {
+            System.out.println("\t* " + param);
+        }
+
         LOGGER.debug("New request to run as a " + lang + " task " + className + "." + methodName);
         LOGGER.debug("Parameters: ");
         for (ApplicationParameter param : arguments) {
@@ -295,7 +310,7 @@ public class Agent {
             }
             paramsCount += results.length;
 
-            Object[] params = new Object[6 * paramsCount];
+            Object[] params = new Object[7 * paramsCount];
             int position = 0;
             LOGGER.debug("Handles parameters:");
             for (ApplicationParameter param : arguments) {
@@ -309,13 +324,13 @@ public class Agent {
                     typesSB.append("OBJECT_T");
                 }
                 addParameterToTaskArguments(param, position, params);
-                position += 6;
+                position += 7;
             }
 
             if (target != null) {
                 LOGGER.debug("\t Target:" + target.getParamName());
                 addParameterToTaskArguments(target, position, params);
-                position += 6;
+                position += 7;
             }
 
             for (ApplicationParameter param : results) {
@@ -325,7 +340,8 @@ public class Agent {
                 params[position + 3] = param.getStdIOStream();
                 params[position + 4] = param.getPrefix();
                 params[position + 5] = param.getParamName();
-                position += 6;
+                params[position + 6] = param.getContentType();
+                position += 7;
             }
 
             String paramsTypes = typesSB.toString();
@@ -375,6 +391,7 @@ public class Agent {
         arguments[position + 3] = param.getStdIOStream();
         arguments[position + 4] = param.getPrefix();
         arguments[position + 5] = param.getParamName();
+        arguments[position + 6] = param.getContentType();
     }
 
     private static void addRemoteData(RemoteDataInformation remote) throws AgentException {
@@ -382,10 +399,9 @@ public class Agent {
         int addedSources = 0;
         LogicalData ld = Comm.getData(remote.getRenaming());
         System.out.println(ld);
-        if (ld == null) {
-            ld = Comm.registerData(remote.getRenaming());
-        }
+        LogicalData otherNamedLocalData = null;
 
+        LinkedList<DataLocation> locations = new LinkedList<>();
         for (RemoteDataLocation loc : remote.getSources()) {
             try {
                 String path = loc.getPath();
@@ -401,14 +417,35 @@ public class Agent {
                     Map<String, Object> resourcesConf = new HashMap<>();
                     resourcesConf.put("Properties", r.getResourceConf());
                     host = registerWorker(workerName, mrd, adaptor, projectConf, resourcesConf);
+                } else {
+                    if (host == Comm.getAppHost()) {
+                        LogicalData localData = Comm.getData(uri.getPath());
+                        if (localData != null) {
+                            otherNamedLocalData = localData;
+                            addedSources++;
+                            continue;
+                        }
+                    }
                 }
                 DataLocation dl = DataLocation.createLocation(host, uri);
-                ld.addLocation(dl);
-                addedSources++;
+                locations.add(dl);
             } catch (AgentException | IOException e) {
                 // Do nothing. Ignore location
                 e.printStackTrace();
             }
+        }
+
+        if (ld == null) {
+            if (otherNamedLocalData == null) {
+                ld = Comm.registerData(remote.getRenaming());
+            } else {
+                Comm.linkData(remote.getRenaming(), otherNamedLocalData.getName());
+                addedSources++;
+            }
+        }
+        for (DataLocation loc : locations) {
+            ld.addLocation(loc);
+            addedSources++;
         }
         System.out.println(ld);
         if (addedSources == 0) {
@@ -602,5 +639,6 @@ public class Agent {
         if (INTERFACES.isEmpty()) {
             ErrorManager.fatal("Could not start any interface");
         }
+        start();
     }
 }

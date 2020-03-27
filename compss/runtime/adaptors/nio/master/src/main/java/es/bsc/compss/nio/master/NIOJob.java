@@ -75,6 +75,13 @@ public class NIOJob extends Job<NIOWorkerNode> {
         NIOAdaptor.submitTask(this);
     }
 
+    @Override
+    public void cancelJob() throws Exception {
+        // Prepare the job
+        LOGGER.info("Stopping NIOJob with ID " + jobId);
+        NIOAdaptor.cancelTask(this);
+    }
+
     /**
      * Creates a new Task with the associated job parameters.
      *
@@ -113,7 +120,7 @@ public class NIOJob extends Job<NIOWorkerNode> {
         NIOTask nt = new NIOTask(this.getLang(), DEBUG, absMethodImpl, this.taskParams.hasTargetObject(),
             this.taskParams.getNumReturns(), params, numParams, absMethodImpl.getRequirements(),
             this.slaveWorkersNodeNames, this.taskId, this.impl.getTaskType(), this.jobId, this.history, this.transferId,
-            this.getTimeOut());
+            this.getOnFailure(), this.getTimeOut());
 
         return nt;
     }
@@ -121,7 +128,7 @@ public class NIOJob extends Job<NIOWorkerNode> {
     private LinkedList<NIOParam> addParams() {
         LinkedList<NIOParam> params = new LinkedList<>();
         for (Parameter param : this.taskParams.getParameters()) {
-            params.add(NIOParamFactory.fromParameter(param));
+            params.add(NIOParamFactory.fromParameter(param, this.getResourceNode()));
         }
         return params;
     }
@@ -142,11 +149,6 @@ public class NIOJob extends Job<NIOWorkerNode> {
                 listener.jobFailed(this, JobEndStatus.EXECUTION_FAILED, null);
             }
         }
-    }
-
-    @Override
-    public void stop() throws Exception {
-        // Do nothing
     }
 
     @Override

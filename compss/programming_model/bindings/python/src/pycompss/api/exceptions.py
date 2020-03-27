@@ -15,8 +15,21 @@
 #  limitations under the License.
 #
 
+# -*- coding: utf-8 -*-
+
+"""
+PyCOMPSs API - Exceptions
+=========================
+    This file defines the public PyCOMPSs exceptions.
+"""
+
 
 class COMPSsException(Exception):
-    """Raised by the user code"""
-    pass
+    """
+    Raised by the user code
+    """
 
+    def __init__(self, message):
+        self.message = message
+        self.target_direction = None
+    

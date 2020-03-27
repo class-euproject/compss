@@ -16,7 +16,6 @@
  */
 package es.bsc.compss.gat.worker.implementations;
 
-import es.bsc.compss.COMPSsConstants.Lang;
 import es.bsc.compss.gat.worker.ImplementationDefinition;
 import es.bsc.compss.types.annotations.Constants;
 import es.bsc.compss.types.implementations.AbstractMethodImplementation;
@@ -72,18 +71,8 @@ public class DecafDefinition extends ImplementationDefinition {
     }
 
     @Override
-    public Lang getLang() {
-        return null;
-    }
-
-    @Override
     public String toLogString() {
         return this.impl.getMethodDefinition();
-    }
-
-    @Override
-    public int getTimeOut() {
-        return 0;
     }
 
 }

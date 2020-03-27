@@ -21,6 +21,7 @@ import es.bsc.compss.executor.ExecutorContext;
 import es.bsc.compss.executor.external.ExecutionPlatformMirror;
 import es.bsc.compss.executor.types.Execution;
 import es.bsc.compss.executor.types.InvocationResources;
+import es.bsc.compss.invokers.Invoker;
 import es.bsc.compss.invokers.util.JobQueue;
 import es.bsc.compss.log.Loggers;
 import es.bsc.compss.types.execution.InvocationContext;
@@ -30,10 +31,13 @@ import es.bsc.compss.types.resources.ResourceDescription;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 
 import org.apache.logging.log4j.LogManager;
@@ -61,6 +65,9 @@ public class ExecutionPlatform implements ExecutorContext {
     private final Semaphore startSemaphore;
     private final Semaphore stopSemaphore;
     private final Map<Class<?>, ExecutionPlatformMirror<?>> mirrors;
+
+    private Set<Integer> toCancel;
+    private Map<Integer, Invoker> executingJobs;
 
 
     /**
@@ -98,7 +105,8 @@ public class ExecutionPlatform implements ExecutorContext {
         });
         this.finishedWorkerThreads = new LinkedList<>();
         addWorkerThreads(initialSize);
-
+        this.toCancel = new HashSet<Integer>();
+        this.executingJobs = new ConcurrentHashMap<>();
     }
 
     /**
@@ -142,9 +150,9 @@ public class ExecutionPlatform implements ExecutorContext {
         for (ExecutionPlatformMirror<?> mirror : this.mirrors.values()) {
             mirror.stop();
         }
-        mirrors.clear();
+        this.mirrors.clear();
 
-        started = false;
+        this.started = false;
         LOGGER.info("Stopped execution platform " + this.platformName);
     }
 
@@ -155,14 +163,14 @@ public class ExecutionPlatform implements ExecutorContext {
      */
     public final synchronized void addWorkerThreads(int numWorkerThreads) {
         Semaphore startSem;
-        if (started) {
+        if (this.started) {
             startSem = new Semaphore(numWorkerThreads);
         } else {
             startSem = this.startSemaphore;
         }
         for (int i = 0; i < numWorkerThreads; i++) {
-            int id = nextThreadId++;
-            Executor executor = new Executor(context, this, "compute" + id) {
+            int id = this.nextThreadId++;
+            Executor executor = new Executor(this.context, this, "compute" + id) {
 
                 @Override
                 public void run() {
@@ -175,14 +183,13 @@ public class ExecutionPlatform implements ExecutorContext {
                 }
             };
             Thread t = new Thread(executor);
-            t.setName(platformName + " compute thread # " + id);
-            workerThreads.add(t);
-            if (started) {
-
+            t.setName(this.platformName + " compute thread # " + id);
+            this.workerThreads.add(t);
+            if (this.started) {
                 t.start();
             }
         }
-        if (started) {
+        if (this.started) {
             startSem.acquireUninterruptibly(numWorkerThreads);
         }
     }
@@ -229,6 +236,38 @@ public class ExecutionPlatform implements ExecutorContext {
         }
         // For tracing
         Runtime.getRuntime().gc();
+    }
+
+    /**
+     * Cancels a running job or sets it to cancel if it is not running.
+     * 
+     * @param jobId Id of the job to cancel.
+     */
+    public void cancelJob(int jobId) {
+        Invoker invoker = this.executingJobs.get(jobId);
+        if (invoker == null) {
+            LOGGER.debug("Job " + jobId + " is to be cancelled");
+            this.toCancel.add(jobId);
+        } else {
+            LOGGER.debug("Cancelling running job " + jobId);
+            this.executingJobs.get(jobId).cancel();
+        }
+    }
+
+    @Override
+    public void registerRunningJob(int jobId, Invoker invoker) {
+        LOGGER.debug("Registering job " + jobId);
+        this.executingJobs.put(jobId, invoker);
+        if (this.toCancel.contains(jobId)) {
+            cancelJob(jobId);
+        }
+    }
+
+    @Override
+    public void unregisterRunningJob(int jobId) {
+        LOGGER.debug("Unregistering job " + jobId);
+        this.executingJobs.remove(jobId);
+        toCancel.remove(jobId);
     }
 
     @Override

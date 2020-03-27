@@ -24,6 +24,7 @@ import es.bsc.compss.types.annotations.parameter.DataType;
 import es.bsc.compss.types.execution.Invocation;
 import es.bsc.compss.types.execution.InvocationContext;
 import es.bsc.compss.types.execution.InvocationParam;
+import es.bsc.compss.types.execution.InvocationParamCollection;
 import es.bsc.compss.types.execution.exceptions.JobExecutionException;
 import es.bsc.compss.types.implementations.MethodImplementation;
 import es.bsc.compss.types.implementations.MethodType;
@@ -35,6 +36,7 @@ import es.bsc.compss.types.resources.ResourceDescription;
 import es.bsc.compss.util.Tracer;
 
 import java.io.File;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -174,6 +176,7 @@ public abstract class ExternalInvoker extends Invoker {
         return lArgs;
     }
 
+    @SuppressWarnings("unchecked")
     private static ArrayList<String> convertParameter(InvocationParam np) {
         ArrayList<String> paramArgs = new ArrayList<>();
 
@@ -182,6 +185,7 @@ public abstract class ExternalInvoker extends Invoker {
         paramArgs.add(Integer.toString(np.getStdIOStream().ordinal()));
         paramArgs.add(np.getPrefix());
         paramArgs.add(np.getName());
+        paramArgs.add(np.getContentType());
         switch (type) {
             case FILE_T:
                 // Passing originalName link instead of renamed file
@@ -234,10 +238,37 @@ public abstract class ExternalInvoker extends Invoker {
                     paramArgs.add(v);
                 }
                 break;
+            case COLLECTION_T:
+                InvocationParamCollection<InvocationParam> icp = (InvocationParamCollection<InvocationParam>) np;
+                writeCollection(icp);
+                paramArgs.add(np.getValue().toString());
+                break;
             default:
                 paramArgs.add(np.getValue().toString());
         }
         return paramArgs;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void writeCollection(InvocationParamCollection<InvocationParam> icp) {
+        String pathToWrite = (String) icp.getValue();
+        LOGGER.debug("Writting Collection file " + pathToWrite + " ");
+        if (new File(pathToWrite).exists()) {
+            LOGGER.debug("Collection file " + pathToWrite + " already written");
+        } else {
+            try (PrintWriter writer = new PrintWriter(pathToWrite, "UTF-8");) {
+                for (InvocationParam subParam : icp.getCollectionParameters()) {
+                    writer.println(
+                        subParam.getType().ordinal() + " " + subParam.getValue() + " " + subParam.getContentType());
+                    if (subParam.getType() == DataType.COLLECTION_T) {
+                        writeCollection((InvocationParamCollection<InvocationParam>) subParam);
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("Error writting collection to file");
+                e.printStackTrace();
+            }
+        }
     }
 
     private static boolean isRuntimeRenamed(String filename) {

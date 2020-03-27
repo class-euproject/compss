@@ -23,7 +23,9 @@ import uuid
 import redis
 import rediscluster
 import logging
-from pycompss.util.serializer import serialize_to_string, deserialize_from_string, deserialize_from_handler
+from pycompss.util.serialization.serializer import serialize_to_string
+from pycompss.util.serialization.serializer import deserialize_from_string
+from pycompss.util.serialization.serializer import deserialize_from_handler
 __name__ = "redispycompss"
 
 '''Constants
@@ -76,7 +78,7 @@ def init(config_file_path=None, **kwargs):
         # slave hierarchy discovery, we will simply connect to the first
         # node we got
         redis_connection = \
-            rediscluster.StrictRedisCluster(host=hosts[0], port=REDIS_PORT)
+            rediscluster.RedisCluster(host=hosts[0], port=REDIS_PORT)
     else:
         # We are in standalone mode
         redis_connection = \

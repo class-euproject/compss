@@ -46,7 +46,7 @@ public class ExternalPSCOParameter extends DependencyParameter {
     public ExternalPSCOParameter(Direction direction, StdIOStream stream, String prefix, String name, String pscoId,
         int hashCode) {
 
-        super(DataType.EXTERNAL_PSCO_T, direction, stream, prefix, name);
+        super(DataType.EXTERNAL_PSCO_T, direction, stream, prefix, name, "null");
         this.pscoId = pscoId;
         this.hashCode = hashCode;
     }
@@ -66,6 +66,11 @@ public class ExternalPSCOParameter extends DependencyParameter {
     @Override
     public String toString() {
         return "ExternalObjectParameter with Id " + this.pscoId + " and HashCode " + this.hashCode;
+    }
+
+    @Override
+    public String generateDataTargetName(String tgtName) {
+        return getId();
     }
 
 }

@@ -183,9 +183,9 @@ tests/scripts/hosts.backup
 
 # Ignore PyCOMPSs AutoParallel submodule patches
 compss/programming_model/bindings/python/src/pycompss/api/parallel.py
-compss/programming_model/bindings/python/src/pycompss/api/tests
+compss/programming_model/bindings/python/src/pycompss/api/tests_parallel
 compss/programming_model/bindings/python/src/pycompss/util/translators
 
 # Generated source files
 compss/programming_model/bindings/bindings-common/src/data_type.h
-compss/programming_model/bindings/python/src/pycompss/api/data_type.py
+compss/programming_model/bindings/python/src/pycompss/api/commons/data_type.py

@@ -72,8 +72,6 @@ public class LogicalData {
 
     // List of existing copies
     private final Set<DataLocation> locations = new TreeSet<>();
-    // List of hosts where the data has been used
-    private final Set<Resource> localLocations = new TreeSet<>();
     // In progress
     private final List<CopyInProgress> inProgress = new LinkedList<>();
     // File's size.
@@ -144,24 +142,6 @@ public class LogicalData {
     }
 
     /**
-     * Returns all the hosts where a task using the data has been scheduled.
-     *
-     * @return
-     */
-    public synchronized Set<Resource> getAllLocalHosts() {
-        return localLocations;
-    }
-
-    /**
-     * Add a new location where a task using the data has been scheduled.
-     *
-     * @param res Resource
-     */
-    public synchronized void addLocation(Resource res) {
-        localLocations.add(res);
-    }
-
-    /**
      * Adds a new location.
      *
      * @param loc New location
@@ -208,6 +188,23 @@ public class LogicalData {
             }
         }
 
+        return list;
+    }
+
+    /**
+     * Obtain all URIs in a resource.
+     * 
+     * @param targetHost Resource
+     * @return list of uri where data is located in the node
+     */
+    public synchronized List<MultiURI> getURIsInHost(Resource targetHost) {
+        List<MultiURI> list = new LinkedList<>();
+        for (DataLocation loc : this.locations) {
+            MultiURI locationURI = loc.getURIInHost(targetHost);
+            if (locationURI != null) {
+                list.add(locationURI);
+            }
+        }
         return list;
     }
 
@@ -475,7 +472,6 @@ public class LogicalData {
         if (isBeingSaved) {
             return null;
         }
-
         // Otherwise, we must remove all the host locations and store a unique
         // location if needed. We only store the "best" location if any (by
         // choosing
@@ -524,7 +520,6 @@ public class LogicalData {
                     break;
             }
         }
-
         return uniqueHostLocation;
     }
 
@@ -630,14 +625,6 @@ public class LogicalData {
         }
     }
 
-    public void lockHostRemoval() {
-        lockHostRemoval_private();
-    }
-
-    public void releaseHostRemoval() {
-        releaseHostRemoval_private();
-    }
-
     @Override
     public synchronized String toString() {
         StringBuilder sb = new StringBuilder();
@@ -651,21 +638,6 @@ public class LogicalData {
             }
         }
         return sb.toString();
-    }
-
-    /*
-     * PRIVATE HELPER METHODS
-     */
-    private void lockHostRemoval_private() {
-        try {
-            lockHostRemoval.acquire();
-        } catch (InterruptedException e) {
-            LOGGER.error("Exception", e);
-        }
-    }
-
-    private void releaseHostRemoval_private() {
-        lockHostRemoval.release();
     }
 
 

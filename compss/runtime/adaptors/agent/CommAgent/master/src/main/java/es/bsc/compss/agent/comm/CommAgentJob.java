@@ -91,8 +91,8 @@ class CommAgentJob extends NIOJob {
 
         CommTask nt = new CommTask(this.getLang(), DEBUG, absMethodImpl, null, this.taskParams.hasTargetObject(),
             this.taskParams.getNumReturns(), params, numParams, absMethodImpl.getRequirements(), slaveWorkersNodeNames,
-            this.taskId, this.impl.getTaskType(), this.jobId, this.history, this.transferId, this.getTimeOut(),
-            CommAgentAdaptor.LOCAL_RESOURCE);
+            this.taskId, this.impl.getTaskType(), this.jobId, this.history, this.transferId, this.getOnFailure(),
+            this.getTimeOut(), CommAgentAdaptor.LOCAL_RESOURCE);
 
         return nt;
     }
@@ -132,7 +132,8 @@ class CommAgentJob extends NIOJob {
         StdIOStream stdIOStream = param.getStream();
         String prefix = param.getPrefix();
         String name = param.getName();
-        CommParam commParam = new CommParam(null, type, dir, stdIOStream, prefix, name, null);
+        String pyType = param.getContentType();
+        CommParam commParam = new CommParam(null, type, dir, stdIOStream, prefix, name, pyType, null);
         commParam.setValue(((BasicTypeParameter) param).getValue());
         return commParam;
     }
@@ -182,13 +183,21 @@ class CommAgentJob extends NIOJob {
         StdIOStream stdIOStream = dPar.getStream();
         String prefix = dPar.getPrefix();
         String name = dPar.getName();
-        CommParam commParam = new CommParam(dataMgmtId, type, dir, stdIOStream, prefix, name, dPar.getOriginalName());
+        String pyType = dPar.getContentType();
+        CommParam commParam =
+            new CommParam(dataMgmtId, type, dir, stdIOStream, prefix, name, pyType, dPar.getOriginalName());
         NIOData sourceData = (NIOData) dPar.getDataSource();
         if (sourceData != null) {
             RemoteDataInformation remoteData = new RemoteDataInformation(renaming);
             for (NIOUri uri : sourceData.getSources()) {
-                CommAgentURI caURI = (CommAgentURI) uri;
-                remoteData.addSource(new RemoteDataLocation(caURI.getAgent(), uri.getPath()));
+                if (uri instanceof CommAgentURI) {
+                    CommAgentURI caURI = (CommAgentURI) uri;
+                    remoteData.addSource(new RemoteDataLocation(caURI.getAgent(), uri.getPath()));
+                } else {
+                    CommAgentURI caURI = new CommAgentURI(uri);
+                    remoteData.addSource(new RemoteDataLocation(caURI.getAgent(), uri.getPath()));
+                }
+
             }
 
             commParam.setRemoteData(remoteData);

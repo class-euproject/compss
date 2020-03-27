@@ -16,8 +16,10 @@
  */
 package es.bsc.compss.gat.worker;
 
+import es.bsc.compss.COMPSsConstants.Lang;
 import es.bsc.compss.types.annotations.Constants;
 import es.bsc.compss.types.annotations.parameter.DataType;
+import es.bsc.compss.types.annotations.parameter.OnFailure;
 import es.bsc.compss.types.annotations.parameter.StdIOStream;
 import es.bsc.compss.types.execution.Invocation;
 import es.bsc.compss.types.execution.InvocationParam;
@@ -45,7 +47,10 @@ public abstract class ImplementationDefinition implements Invocation {
     private final boolean debug;
     private final int jobId;
     private final int taskId;
+    private final Lang lang;
     private final JobHistory history;
+    private final OnFailure onFailure;
+    private final long timeout;
 
     private final List<String> hostnames;
     private final int cus;
@@ -67,7 +72,10 @@ public abstract class ImplementationDefinition implements Invocation {
     public ImplementationDefinition(boolean enableDebug, String[] args, int appArgsIdx) {
         this.jobId = Integer.parseInt(args[appArgsIdx++]);
         this.taskId = Integer.parseInt(args[appArgsIdx++]);
+        this.lang = Lang.JAVA;
         this.history = JobHistory.NEW;
+        this.onFailure = OnFailure.IGNORE;
+        this.timeout = Long.parseLong(args[appArgsIdx++]);
 
         this.debug = enableDebug;
 
@@ -145,6 +153,14 @@ public abstract class ImplementationDefinition implements Invocation {
                 name = "";
             }
 
+            String pyType = args[appArgsIdx++];
+            if (pyType.compareTo("null") == 0) {
+                pyType = "";
+            }
+
+            // // So far, not available in args array
+            // String pyType = "null";
+
             switch (argType) {
                 case FILE_T:
                 case EXTERNAL_STREAM_T:
@@ -202,7 +218,7 @@ public abstract class ImplementationDefinition implements Invocation {
                     throw new Exception(WARN_UNSUPPORTED_DATA_TYPE + argType);
             }
 
-            Param p = new Param(argType, prefix, name, stream, originalName, writeFinal);
+            Param p = new Param(argType, prefix, name, pyType, stream, originalName, writeFinal);
             if (value != null) {
                 p.setValue(value);
             }
@@ -314,6 +330,21 @@ public abstract class ImplementationDefinition implements Invocation {
         return history;
     }
 
+    @Override
+    public Lang getLang() {
+        return lang;
+    }
+
+    @Override
+    public long getTimeOut() {
+        return timeout;
+    }
+
+    @Override
+    public OnFailure getOnFailure() {
+        return onFailure;
+    }
+
 
     private static class Param implements InvocationParam {
 
@@ -323,17 +354,19 @@ public abstract class ImplementationDefinition implements Invocation {
 
         private final String prefix;
         private final String name;
+        private final String contentType;
         private final StdIOStream stream;
         private String originalName;
         private String renamedName;
         private final boolean writeFinalValue;
 
 
-        public Param(DataType type, String prefix, String name, StdIOStream stream, String originalName,
-            boolean writeFinalValue) {
+        public Param(DataType type, String prefix, String name, String contentType, StdIOStream stream,
+            String originalName, boolean writeFinalValue) {
             this.type = type;
             this.prefix = prefix;
             this.name = name;
+            this.contentType = contentType;
             this.stream = stream;
             this.originalName = originalName;
             this.writeFinalValue = writeFinalValue;
@@ -367,6 +400,11 @@ public abstract class ImplementationDefinition implements Invocation {
         @Override
         public String getName() {
             return this.name;
+        }
+
+        @Override
+        public String getContentType() {
+            return this.contentType;
         }
 
         @Override

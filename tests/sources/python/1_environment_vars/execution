@@ -34,6 +34,7 @@
   export memoryType="Volatile"
   export storageSize="240.0"
   export storageType="SSD"
+  export storageBW="50"
   export operatingSystemType="Linux"
   export operatingSystemDistribution="OpenSUSE"
   export operatingSystemVersion="13.2"

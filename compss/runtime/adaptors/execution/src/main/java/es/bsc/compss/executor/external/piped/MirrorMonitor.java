@@ -41,6 +41,7 @@ public class MirrorMonitor {
     private Process mainProcess;
     private ControlPipePair controlPipe;
     private boolean keepAlive = false;
+    private boolean stopped = false;
     private Map<String, PipeWorkerInfo> workers = new TreeMap<>();
     private Map<String, PipeExecutorInfo> executors = new TreeMap<>();
     private final List<String> unremovedElements = new LinkedList<>();
@@ -60,6 +61,7 @@ public class MirrorMonitor {
                     e.printStackTrace();
                 }
                 synchronized (MirrorMonitor.this) {
+                    stopped = true;
                     MirrorMonitor.this.notify();
                 }
             }
@@ -89,6 +91,7 @@ public class MirrorMonitor {
                 controlPipe.delete();
                 controlPipe = null;
                 mainProcess = null;
+                break;
             }
             if (Thread.interrupted()) {
                 break;
@@ -177,7 +180,9 @@ public class MirrorMonitor {
                         if (!removed) {
                             // If it was not removed yet
                             PipePair workerPipe = info.getPipe();
-                            LOGGER.debug("Piped mirrors monitor has detected that executor process " + info.getPID()
+                            System.err.println("Piped mirrors monitor has detected that executor process "
+                                + info.getPID() + " has died.");
+                            LOGGER.error("Piped mirrors monitor has detected that executor process " + info.getPID()
                                 + " has died.");
                             workerPipe.noLongerExists();
                             workerPipe.delete();
@@ -212,10 +217,13 @@ public class MirrorMonitor {
         synchronized (this) {
             keepAlive = false;
             monitorThread.interrupt();
-            try {
-                this.wait();
-            } catch (InterruptedException ie) {
-                // Do nothing
+            if (!stopped) {
+                try {
+                    LOGGER.debug("Waiting monitor to stop...");
+                    this.wait();
+                } catch (InterruptedException ie) {
+                    // Do nothing
+                }
             }
         }
     }

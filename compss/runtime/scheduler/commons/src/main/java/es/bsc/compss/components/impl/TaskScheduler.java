@@ -96,6 +96,8 @@ public class TaskScheduler {
     // Profiles from resources that have already been turned off
     private Profile[][] offVMsProfiles;
 
+    protected static final boolean DEBUG = LOGGER.isDebugEnabled();
+
 
     /**
      * Constructs a new Task Scheduler.
@@ -261,7 +263,7 @@ public class TaskScheduler {
      */
     public Score generateActionScore(AllocatableAction action) {
         // LOGGER.debug("[TaskScheduler] Generate priority action score");
-        return new Score(action.getPriority(), 0, 0, 0);
+        return new Score(action.getPriority(), action.getGroupPriority(), 0, 0, 0);
     }
 
     /*
@@ -329,7 +331,7 @@ public class TaskScheduler {
      *
      * @param action AllocatableAction.
      */
-    private void addToReady(AllocatableAction action) {
+    protected void addToReady(AllocatableAction action) {
         LOGGER.debug("[TaskScheduler] Add action " + action + " to ready count");
         Integer coreId = action.getCoreId();
         if (coreId != null) {
@@ -345,7 +347,7 @@ public class TaskScheduler {
      *
      * @param action AllocatableAction.
      */
-    private void removeFromReady(AllocatableAction action) {
+    protected void removeFromReady(AllocatableAction action) {
         LOGGER.info("[TaskScheduler] Remove action " + action + " from ready count");
         if (action.getImplementations() != null) {
             if (action.getImplementations().length > 0) {
@@ -365,7 +367,7 @@ public class TaskScheduler {
      *
      * @param action Blocked AllocatableAction.
      */
-    private void addToBlocked(AllocatableAction action) {
+    protected void addToBlocked(AllocatableAction action) {
         LOGGER.warn("[TaskScheduler] Blocked Action: " + action);
         this.blockedActions.addAction(action);
     }
@@ -382,7 +384,7 @@ public class TaskScheduler {
      *
      * @param action Action to be scheduled.
      */
-    public final void newAllocatableAction(AllocatableAction action) {
+    public void newAllocatableAction(AllocatableAction action) {
         LOGGER.info("[TaskScheduler] Registering new AllocatableAction " + action);
         if (!action.hasDataPredecessors() && !action.hasStreamProducers()) {
             addToReady(action);
@@ -536,7 +538,11 @@ public class TaskScheduler {
 
         // Process the action error (removes the assigned resource)
         try {
-            action.error();
+            if (action.isCancelling()) {
+                action.canceled();
+            } else {
+                action.error();
+            }
         } catch (FailedActionException fae) {
             // Action has completely failed
             failed = true;
@@ -573,6 +579,7 @@ public class TaskScheduler {
 
         if (action.getOnFailure() == OnFailure.RETRY) {
             if (!failed) {
+                LOGGER.debug("Adding action " + action + " to data Free actions.");
                 dataFreeActions.add(action);
                 // Try to re-schedule the action
                 /*
@@ -585,7 +592,7 @@ public class TaskScheduler {
 
         List<AllocatableAction> blockedCandidates = new LinkedList<>();
 
-        if (action.getOnFailure() != OnFailure.CANCEL_SUCCESSORS) {
+        if (action.getOnFailure() != OnFailure.CANCEL_SUCCESSORS && !action.isCancelled()) {
             handleDependencyFreeActions(dataFreeActions, resourceFree, blockedCandidates, resource);
             for (AllocatableAction aa : blockedCandidates) {
                 if (!aa.hasDataPredecessors() && !aa.hasStreamProducers()) {
@@ -1468,7 +1475,7 @@ public class TaskScheduler {
 
     private class WorkersMap {
 
-        private final Map<Worker<? extends WorkerResourceDescription>, 
+        private final Map<Worker<? extends WorkerResourceDescription>,
             ResourceScheduler<? extends WorkerResourceDescription>> map;
 
 

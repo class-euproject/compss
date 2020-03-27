@@ -24,7 +24,7 @@ public class COMPSsWorker {
 
     public static final String COMPSS_TASK_ID = "COMPSS_TASK_ID";
 
-    private static final Map<Integer, Boolean> TASKS_TO_CANCEL = new HashMap<>();
+    private static final Map<Integer, CancelReason> TASKS_TO_CANCEL = new HashMap<>();
 
 
     /**
@@ -35,9 +35,21 @@ public class COMPSsWorker {
     public static final void cancellationPoint() throws Exception {
         String taskIdStr = System.getProperty(COMPSS_TASK_ID);
         if (taskIdStr != null) {
-            Boolean toCancel = TASKS_TO_CANCEL.get(Integer.parseInt(taskIdStr));
-            if (toCancel != null && toCancel) {
-                throw new Exception("Task " + taskIdStr + " has been cancelled.");
+            CancelReason exceptionReason = TASKS_TO_CANCEL.get(Integer.parseInt(taskIdStr));
+            if (exceptionReason != null) {
+                // Treat exception
+                switch (exceptionReason) {
+                    case COMPSS_EXCEPTION:
+                        // Print on the job console
+                        System.out.println("Task " + taskIdStr + " cancelled because a COMPSs Exception occured.");
+                        // Throw exception
+                        throw new Exception("Task " + taskIdStr + " has been canceled.");
+                    case TIMEOUT:
+                        // Print on the job console
+                        System.out.println("Task " + taskIdStr + " has timed out.");
+                        // Throw exception
+                        throw new Exception("Task " + taskIdStr + " timed out.");
+                }
             }
         }
     }
@@ -47,7 +59,7 @@ public class COMPSsWorker {
      * 
      * @param taskId Task Id.
      */
-    protected static final void setCancelled(int taskId) {
-        TASKS_TO_CANCEL.put(taskId, true);
+    protected static final void setCancelled(int taskId, CancelReason reason) {
+        TASKS_TO_CANCEL.put(taskId, reason);
     }
 }

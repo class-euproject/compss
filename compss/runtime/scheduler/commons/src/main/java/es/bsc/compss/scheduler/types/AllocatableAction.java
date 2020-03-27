@@ -33,6 +33,7 @@ import es.bsc.compss.worker.COMPSsException;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -54,7 +55,8 @@ public abstract class AllocatableAction {
         RUNNING, // Action is running
         FINISHED, // Action has been successfully completed
         FAILED, // Action has failed
-        CANCELED // Action has been canceled
+        CANCELLED, // Action has been canceled
+        CANCELLING
     }
 
 
@@ -64,6 +66,16 @@ public abstract class AllocatableAction {
     protected static final String DBG_PREFIX = "[AllocatableAction] ";
     // AllocatableAction Id counter
     private static final AtomicInteger NEXT_ID = new AtomicInteger();
+
+    // Default action group priorities (the less the better)
+    protected static final long ACTION_SINGLE = Long.MAX_VALUE;
+    protected static final long ACTION_GROUP_RUNNING = 0L;
+    protected static final long ACTION_GROUP_IDLE = 1L;
+    protected static final long ACTION_VALUE_TRANSFER = -1L;
+    protected static final long ACTION_START_WORKER = -1L;
+    protected static final long ACTION_STOP_WORKER = -1L;
+    protected static final long ACTION_REDUCE_WORKER = -1L;
+    protected static final long ACTION_OPTIMIZE = -1L;
 
     // Orchestrator
     protected final ActionOrchestrator orchestrator;
@@ -79,6 +91,8 @@ public abstract class AllocatableAction {
     private final List<AllocatableAction> streamDataProducers;
     // Allocatable actions that consume stream elements produced by this allocatable action
     private final List<AllocatableAction> streamDataConsumers;
+    // Allocatable actions that are members of the same task group
+    private final List<AllocatableAction> groupMembers;
 
     private State state;
     private ResourceScheduler<? extends WorkerResourceDescription> selectedResource;
@@ -112,6 +126,7 @@ public abstract class AllocatableAction {
         this.dataSuccessors = new LinkedList<>();
         this.streamDataProducers = new LinkedList<>();
         this.streamDataConsumers = new LinkedList<>();
+        this.groupMembers = new LinkedList<>();
         this.state = State.RUNNABLE;
         this.selectedResource = null;
         this.selectedImpl = null;
@@ -221,11 +236,15 @@ public abstract class AllocatableAction {
      */
     public final boolean hasDataPredecessors() {
         boolean canceled = false;
+        LinkedList<AllocatableAction> cancelled = new LinkedList<>();
         for (AllocatableAction aa : this.dataPredecessors) {
             canceled = checkIfCanceled(aa);
             if (canceled == true) {
-                this.dataPredecessors.remove(aa);
+                cancelled.add(aa);
             }
+        }
+        for (AllocatableAction aa : cancelled) {
+            this.dataPredecessors.remove(aa);
         }
         return !this.dataPredecessors.isEmpty();
     }
@@ -289,6 +308,20 @@ public abstract class AllocatableAction {
                 }
                 predecessor.streamDataConsumers.add(this);
             }
+        }
+    }
+
+    /**
+     * Adds the aa of a group member task.
+     * 
+     * @param member Task part of the same group.
+     */
+    public final void addGroupMember(AllocatableAction member) {
+        if (!this.groupMembers.contains(member)) {
+            if (DEBUG) {
+                LOGGER.debug("Adding group member " + member.getId() + " to same group of " + this.getId());
+            }
+            this.groupMembers.add(member);
         }
     }
 
@@ -434,6 +467,33 @@ public abstract class AllocatableAction {
      */
     public final boolean isRunning() {
         return this.state == State.RUNNING;
+    }
+
+    /**
+     * Returns whether the AllocatableAction is being cancelled or not.
+     *
+     * @return {@literal true} if the AllocatableAction is cancelled, {@literal false} otherwise.
+     */
+    public final boolean isCancelling() {
+        return this.state == State.CANCELLING;
+    }
+
+    /**
+     * Returns whether the AllocatableAction has been cancelled.
+     *
+     * @return {@literal true} if the AllocatableAction is cancelled, {@literal false} otherwise.
+     */
+    public final boolean isCancelled() {
+        return this.state == State.CANCELLED;
+    }
+
+    /**
+     * Returns whether the AllocatableAction is in RUNNABLE state.
+     *
+     * @return {@literal true} if the AllocatableAction is runnable, {@literal false} otherwise.
+     */
+    public final boolean isRunnable() {
+        return this.state == State.RUNNABLE;
     }
 
     /**
@@ -775,6 +835,9 @@ public abstract class AllocatableAction {
 
     protected abstract void treatDependencyFreeAction(List<AllocatableAction> freeTasks);
 
+    public abstract List<ResourceScheduler<?>> tryToSchedule(Score actionScore,
+        Set<ResourceScheduler<?>> availableWorkers) throws BlockedActionException, UnassignedActionException;
+
     /**
      * Operations to perform when AA has raised an error. Calls specific operation doError.
      *
@@ -811,18 +874,20 @@ public abstract class AllocatableAction {
 
         cancelAction();
 
-        List<AllocatableAction> successors = new LinkedList<>();
-        successors.addAll(this.dataSuccessors);
-
         // Action notification
         doException(e);
 
-        // Triggering cancelation on Data Successors
+        List<AllocatableAction> groupActions = new LinkedList<>();
+        groupActions.addAll(this.groupMembers);
+
+        // Triggering cancellation on tasks of the same group
         List<AllocatableAction> cancel = new LinkedList<>();
 
-        // Forward cancellation to successors
-        for (AllocatableAction succ : successors) {
-            cancel.addAll(succ.canceled());
+        // Forward cancellation to members of the same task group
+        for (AllocatableAction aa : groupActions) {
+            if (aa.state == State.RUNNING || aa.state == State.WAITING || aa.state == State.RUNNABLE) {
+                cancel.addAll(aa.canceled());
+            }
         }
 
         this.dataPredecessors.clear();
@@ -890,28 +955,44 @@ public abstract class AllocatableAction {
      * @return List of cancelled successor Allocatable Actions.
      */
     public final List<AllocatableAction> canceled() {
-
-        // Mark as canceled
-        this.state = State.CANCELED;
-
-        cancelAction();
-
-        List<AllocatableAction> successors = new LinkedList<>();
-        successors.addAll(this.dataSuccessors);
-
         // Triggering cancelation on Data Successors
         List<AllocatableAction> cancel = new LinkedList<>();
 
-        // Action notification
-        doCanceled();
+        if (this.state == State.RUNNING) {
+            try {
+                this.state = State.CANCELLING;
+                stopAction();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            if (this.state == State.CANCELLING) {
+                // Release resources and run tasks blocked on the resource
+                releaseResources();
+                this.selectedResource.unhostAction(this);
+                this.selectedResource.tryToLaunchBlockedActions();
+            }
+            if (this.state != State.CANCELLED) {
+                // Mark as canceled
+                this.state = State.CANCELLED;
 
-        // Forward cancellation to successors
-        for (AllocatableAction succ : successors) {
-            cancel.addAll(succ.canceled());
+                cancelAction();
+
+                List<AllocatableAction> successors = new LinkedList<>();
+                successors.addAll(this.dataSuccessors);
+
+                // Action notification
+                doCanceled();
+
+                // Forward cancellation to successors
+                for (AllocatableAction succ : successors) {
+                    cancel.addAll(succ.canceled());
+                }
+
+                this.dataPredecessors.clear();
+                this.dataSuccessors.clear();
+            }
         }
-
-        this.dataPredecessors.clear();
-        this.dataSuccessors.clear();
 
         return cancel;
     }
@@ -939,6 +1020,13 @@ public abstract class AllocatableAction {
             pred.dataSuccessors.remove(this);
         }
     }
+
+    /**
+     * Cancels a running execution.
+     * 
+     * @throws Exception Unstarted node exception.
+     */
+    protected abstract void stopAction() throws Exception;
 
     /**
      * Triggers the aborted action execution notification.
@@ -1023,6 +1111,13 @@ public abstract class AllocatableAction {
      * @return The action priority.
      */
     public abstract int getPriority();
+
+    /**
+     * Returns the action's MultiNodeGroup priority.
+     * 
+     * @return The action's MultiNodeGroup priority.
+     */
+    public abstract long getGroupPriority();
 
     /**
      * Returns the behavior when action fails.

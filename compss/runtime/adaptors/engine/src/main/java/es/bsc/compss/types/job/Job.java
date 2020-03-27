@@ -21,6 +21,7 @@ import es.bsc.compss.COMPSsConstants.Lang;
 import es.bsc.compss.log.Loggers;
 import es.bsc.compss.types.COMPSsWorker;
 import es.bsc.compss.types.TaskDescription;
+import es.bsc.compss.types.annotations.parameter.OnFailure;
 import es.bsc.compss.types.implementations.Implementation;
 import es.bsc.compss.types.implementations.TaskType;
 import es.bsc.compss.types.resources.Resource;
@@ -267,7 +268,7 @@ public abstract class Job<T extends COMPSsWorker> {
      *
      * @throws Exception Error when stopping a job
      */
-    public abstract void stop() throws Exception;
+    public abstract void cancelJob() throws Exception;
 
     /**
      * Returns the hostname.
@@ -287,11 +288,20 @@ public abstract class Job<T extends COMPSsWorker> {
     public abstract String toString();
 
     /**
+     * Returns the on-failure mechanisms.
+     *
+     * @return The on-failure mechanisms.
+     */
+    public OnFailure getOnFailure() {
+        return this.taskParams.getOnFailure();
+    }
+
+    /**
      * Returns the time out of the task.
      *
      * @return time out of the task
      */
-    public int getTimeOut() {
+    public long getTimeOut() {
         return this.taskParams.getTimeOut();
     }
 
