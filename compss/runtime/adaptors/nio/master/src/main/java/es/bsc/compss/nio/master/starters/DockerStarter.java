@@ -4,7 +4,6 @@ import es.bsc.comm.nio.NIONode;
 import es.bsc.compss.exceptions.InitNodeException;
 import es.bsc.compss.nio.master.NIOWorkerNode;
 import es.bsc.compss.nio.master.handlers.ProcessOut;
-import es.bsc.compss.util.Tracer;
 
 import java.io.File;
 import java.util.ArrayList;

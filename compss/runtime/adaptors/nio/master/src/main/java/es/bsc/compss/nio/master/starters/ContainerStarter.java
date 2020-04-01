@@ -18,13 +18,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Iterator;
-import java.util.List;
 
 
 public abstract class ContainerStarter extends Starter {
-
-    private static final String DEFAULT_CONTAINER_APP_DIR = "/compss";
-    private static final String NIO_WORKER_CLASS_NAME = "es.bsc.compss.nio.worker.NIOWorker";
 
     protected static String INFERRED_MASTER_NAME = null;
 
@@ -49,7 +45,7 @@ public abstract class ContainerStarter extends Starter {
     protected String[] generateStartCommand(int workerPort, String masterName, String hostId) throws InitNodeException {
         final String workingDir = this.nw.getWorkingDir();
         final String installDir = this.nw.getInstallDir();
-        final String appDir = "/compss";
+        final String appDir = this.nw.getAppDir();
         String classpathFromFile = this.nw.getClasspath();
         String pythonpathFromFile = this.nw.getPythonpath();
         String libPathFromFile = this.nw.getLibPath();

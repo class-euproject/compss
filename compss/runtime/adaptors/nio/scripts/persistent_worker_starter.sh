@@ -51,7 +51,7 @@
     export NANOS6_SCHEDULER=hierarchical
   fi
 
-  $cmd ${paramsToCOMPSsWorker} 1>$workingDir/log/worker_${hostName}.out 2> $workingDir/log/worker_${hostName}.err
+  $cmd ${paramsToCOMPSsWorker} 2> $workingDir/log/worker_${hostName}.err | tee $workingDir/log/worker_${hostName}.out
 
   exitValue=$?
 
