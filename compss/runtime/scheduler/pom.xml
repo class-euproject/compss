@@ -45,5 +45,8 @@
         <module>lifoScheduler</module>
         <module>fifoDataScheduler</module>
         <module>loadBalancingScheduler</module>
+	<module>paperScheduler</module>
+        <module>prometheusScheduler</module>
+        <module>heuristics</module>
     </modules>
 </project>

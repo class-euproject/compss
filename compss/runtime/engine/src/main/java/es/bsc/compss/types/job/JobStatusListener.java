@@ -16,6 +16,7 @@
  */
 package es.bsc.compss.types.job;
 
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.types.allocatableactions.ExecutionAction;
 import es.bsc.compss.worker.COMPSsException;
 
@@ -30,9 +31,9 @@ public class JobStatusListener implements JobListener {
     }
 
     @Override
-    public void jobCompleted(Job<?> job) {
+    public void jobCompleted(Job<?> job, NIOProfile p) {
         // Mark execution as completed
-        this.execution.completedJob(job);
+        this.execution.completedJob(job, p);
     }
 
     @Override

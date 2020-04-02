@@ -16,6 +16,7 @@
  */
 package es.bsc.compss.nio;
 
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.types.annotations.parameter.DataType;
 
 import java.io.Externalizable;
@@ -34,6 +35,8 @@ public class NIOTaskResult implements Externalizable {
     private List<DataType> paramTypes = new LinkedList<>();
     // ATTENTION: Parameter Values will be empty if it doesn't contain a PSCO Id
     private List<Object> paramValues = new LinkedList<>();
+
+    private NIOProfile p;
 
 
     /**
@@ -115,6 +118,84 @@ public class NIOTaskResult implements Externalizable {
                     break;
             }
         }
+        this.p = null;
+    }
+
+    /**
+     * New task result with the given information.
+     *
+     * @param jobId Job Id.
+     * @param arguments Job arguments.
+     * @param target Job target.
+     * @param results Job results.
+     * @param p NIOProfile containing timings of stard/end of task execution
+     */
+    public NIOTaskResult(int jobId, List<NIOParam> arguments, NIOParam target, List<NIOParam> results, NIOProfile p) {
+        this.jobId = jobId;
+
+        for (NIOParam np : arguments) {
+            this.paramTypes.add(np.getType());
+
+            if (np.isWriteFinalValue()) {
+                // Object has direction INOUT or OUT
+                switch (np.getType()) {
+                    case PSCO_T:
+                        this.paramValues.add(((StubItf) np.getValue()).getID());
+                        break;
+                    case EXTERNAL_PSCO_T:
+                        this.paramValues.add(np.getValue());
+                        break;
+                    default:
+                        // We add a NULL for any other type
+                        this.paramValues.add(null);
+                        break;
+                }
+            } else {
+                // Object has direction IN
+                this.paramValues.add(null);
+            }
+        }
+        if (target != null) {
+            this.paramTypes.add(target.getType());
+
+            if (target.isWriteFinalValue()) {
+                // Target is marked with isModifier = true
+                switch (target.getType()) {
+                    case PSCO_T:
+                        this.paramValues.add(((StubItf) target.getValue()).getID());
+                        break;
+                    case EXTERNAL_PSCO_T:
+                        this.paramValues.add(target.getValue());
+                        break;
+                    default:
+                        // We add a NULL for any other type
+                        this.paramValues.add(null);
+                        break;
+                }
+            } else {
+                // Target is marked with isModifier = false
+                this.paramValues.add(null);
+            }
+        }
+
+        for (NIOParam np : results) {
+            this.paramTypes.add(np.getType());
+
+            switch (np.getType()) {
+                case PSCO_T:
+                    this.paramValues.add(((StubItf) np.getValue()).getID());
+                    break;
+                case EXTERNAL_PSCO_T:
+                    this.paramValues.add(np.getValue());
+                    break;
+                default:
+                    // We add a NULL for any other type
+                    this.paramValues.add(null);
+                    break;
+            }
+        }
+
+        this.p = p;
     }
 
     /**
@@ -151,6 +232,7 @@ public class NIOTaskResult implements Externalizable {
         this.jobId = in.readInt();
         this.paramTypes = (LinkedList<DataType>) in.readObject();
         this.paramValues = (LinkedList<Object>) in.readObject();
+        this.p = (NIOProfile) in.readObject();
     }
 
     @Override
@@ -158,6 +240,11 @@ public class NIOTaskResult implements Externalizable {
         out.writeInt(this.jobId);
         out.writeObject(this.paramTypes);
         out.writeObject(this.paramValues);
+        out.writeObject(this.p);
+    }
+
+    public NIOProfile getProfile() {
+        return this.p;
     }
 
     @Override

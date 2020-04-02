@@ -452,6 +452,7 @@ install_compss() {
   cp -r "${SOURCES_DIR}/files" "${TMP_DIR}"
   cp -r "${SOURCES_DIR}/maven-plugins" "${TMP_DIR}"
   cp -r "${SOURCES_DIR}/utils" "${TMP_DIR}"
+  cp -r "${SOURCES_DIR}/ilp" "${TMP_DIR}"
   cp "${SOURCES_DIR}/LICENSE" "${TMP_DIR}"
   cp "${SOURCES_DIR}/NOTICE" "${TMP_DIR}"
   cp "${SOURCES_DIR}/pom.xml" "${TMP_DIR}"
@@ -496,6 +497,7 @@ install_compss() {
   cp "${TMP_DIR}/NOTICE" ${targetDir}
   cp "${TMP_DIR}/README.md" ${targetDir}
   cp "${TMP_DIR}/RELEASE_NOTES" ${targetDir}
+  cp -r "${TMP_DIR}/ilp/" ${targetDir}/Runtime/configuration/
 
   # DEPENDENCIES
   echo "--- Copy dependencies"
@@ -555,8 +557,8 @@ install_compss() {
 
   # CONFIG
   echo "--- Copy configuration"
-  find "${TMP_DIR}"/compss/runtime/config -name src -type d -prune -exec rm -r "{}" \;
-  find "${TMP_DIR}"/compss/runtime/config -name target -type d -prune -exec rm -r "{}" \;
+  find "${TMP_DIR}"/compss/runtime/config -name src -type d -prune -exec rm -rf "{}" \;
+  find "${TMP_DIR}"/compss/runtime/config -name target -type d -prune -exec rm -rf "{}" \;
   find "${TMP_DIR}"/compss/runtime/config -name pom.xml -delete
   cp -r "${TMP_DIR}"/compss/runtime/config/* ${targetDir}/Runtime/configuration/
   sed -i -e 's#/opt/COMPSs/#'${targetDir}'#g'  ${targetDir}/Runtime/configuration/xml/projects/default_project.xml
@@ -700,7 +702,7 @@ install_compss() {
     envFile=/etc/profile.d/compss.sh
     # Remove any previous version
     if [ -f "$envFile" ]; then
-      rm $envFile
+      rm -f $envFile
     fi
   else
     # Script has been run as normal user

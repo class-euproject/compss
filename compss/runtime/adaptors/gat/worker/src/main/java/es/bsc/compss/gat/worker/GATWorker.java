@@ -19,6 +19,7 @@ package es.bsc.compss.gat.worker;
 import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.COMPSsConstants.Lang;
 import es.bsc.compss.COMPSsConstants.TaskExecution;
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.executor.ExecutionManager;
 import es.bsc.compss.executor.types.Execution;
 import es.bsc.compss.executor.types.ExecutionListener;
@@ -415,7 +416,7 @@ public class GATWorker implements InvocationContext {
         Execution e = new Execution(task, new ExecutionListener() {
 
             @Override
-            public void notifyEnd(Invocation invocation, boolean success, COMPSsException e) {
+            public void notifyEnd(Invocation invocation, boolean success, COMPSsException e, NIOProfile p) {
                 status.setSuccess(success);
                 sem.release();
             }

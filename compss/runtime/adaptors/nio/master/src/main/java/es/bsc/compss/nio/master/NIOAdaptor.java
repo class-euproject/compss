@@ -22,6 +22,7 @@ import es.bsc.comm.nio.NIONode;
 import es.bsc.comm.stage.Transfer.Destination;
 
 import es.bsc.compss.COMPSsConstants;
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.comm.Comm;
 import es.bsc.compss.comm.CommAdaptor;
 import es.bsc.compss.data.BindingDataManager;
@@ -135,6 +136,8 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
     private static final Map<Connection, ClosingExecutor> STOPPING_EXECUTORS = new HashMap<>();
 
     private static final Map<Connection, Semaphore> PENDING_MODIFICATIONS = new HashMap<>();
+
+    private static Map<Integer, Long> taskStartTimes = new HashMap<>();
 
     private final boolean persistentC;
 
@@ -383,6 +386,11 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
             obsoleteRenamings.add(u.getPath());
         }
         RUNNING_JOBS.put(job.getJobId(), job);
+        // TODO: get init time
+        long time = System.currentTimeMillis();
+        int taskId = job.getTaskId();
+        taskStartTimes.put(taskId, time);
+        // System.out.println("NIO Job " + taskId + " start time " + time);
         worker.submitTask(job, obsoleteRenamings);
     }
 
@@ -465,7 +473,13 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
             // Update NIO Job
             // Mark task as finished and release waiters
             JobHistory prevJobHistory = nj.getHistory();
-            nj.taskFinished(successful, e);
+
+            long time = System.currentTimeMillis();
+            NIOProfile p = tr.getProfile();
+            p.setStartTimeMaster(taskStartTimes.get(taskId));
+            p.setEndTimeMaster(time);
+            // System.out.println("NIO Job " + taskId + " end time " + time);
+            nj.taskFinished(successful, e, p);
 
             // Retrieve files if required
             retrieveAdditionalJobFiles(c, successful, jobId, taskId, prevJobHistory);
@@ -491,7 +505,7 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
             // Update NIO Job
             // Mark task as finished and release waiters
             JobHistory prevJobHistory = nj.getHistory();
-            nj.taskFinished(false, null);
+            nj.taskFinished(false, null, null);
 
             // Retrieve files if required
             generateFailedJobFiles(jobId, taskId, prevJobHistory, "Error sending new task command");

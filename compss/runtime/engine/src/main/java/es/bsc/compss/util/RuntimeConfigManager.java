@@ -265,6 +265,15 @@ public class RuntimeConfigManager {
     }
 
     /**
+     * Returns the task monitor to load.
+     *
+     * @return The task monitor to load.
+     */
+    public String getTaskMonitor() {
+        return config.getString(COMPSsConstants.TASK_MONITOR);
+    }
+
+    /**
      * Sets a new implementing class for the scheduler.
      * 
      * @param implementingClass New implementing class for the scheduler.

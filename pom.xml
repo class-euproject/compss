@@ -96,7 +96,7 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-        </repository>-->
+        </repository>
         <repository>
             <id>ZK CE</id>
             <name>ZK CE Repository</name>
@@ -104,8 +104,8 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-        </repository>
-        <repository>
+	</repository>-->
+	<repository>
             <id>compss-repo</id>
             <name>BSC Workflows and Distributed Computing group</name>
             <url>http://compss.bsc.es/artifactory/libs-release</url>

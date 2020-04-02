@@ -16,6 +16,7 @@
  */
 package es.bsc.compss.nio.listeners;
 
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.executor.types.ExecutionListener;
 import es.bsc.compss.nio.worker.NIOWorker;
 import es.bsc.compss.types.execution.Invocation;
@@ -37,8 +38,7 @@ public class TaskExecutionListener implements ExecutionListener {
     }
 
     @Override
-    public void notifyEnd(Invocation invocation, boolean success, COMPSsException exception) {
-        this.nw.sendTaskDone(invocation, success, exception);
+    public void notifyEnd(Invocation invocation, boolean success, COMPSsException exception, NIOProfile p) {
+        this.nw.sendTaskDone(invocation, success, exception, p);
     }
-
 }

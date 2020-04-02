@@ -16,6 +16,7 @@
  */
 package es.bsc.compss.types.allocatableactions;
 
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.api.TaskMonitor;
 import es.bsc.compss.comm.Comm;
 import es.bsc.compss.components.impl.ResourceScheduler;
@@ -31,6 +32,7 @@ import es.bsc.compss.scheduler.types.Score;
 import es.bsc.compss.types.AbstractTask;
 import es.bsc.compss.types.CommutativeGroupTask;
 import es.bsc.compss.types.CoreElement;
+import es.bsc.compss.types.DeadlineMonitor;
 import es.bsc.compss.types.Task;
 import es.bsc.compss.types.TaskDescription;
 import es.bsc.compss.types.TaskGroup;
@@ -194,6 +196,7 @@ public class ExecutionAction extends AllocatableAction {
         this.transferErrors = 0;
         this.executionErrors = 0;
         TaskMonitor monitor = this.task.getTaskMonitor();
+        JOB_LOGGER.info("Task Monitor class is " + monitor + " and class name is " + monitor.getClass().getName());
         monitor.onSubmission();
         doInputTransfers();
         for (CommutativeGroupTask com : this.getTask().getCommutativeGroupList()) {
@@ -490,9 +493,18 @@ public class ExecutionAction extends AllocatableAction {
      *
      * @param job Completed job.
      */
-    public final void completedJob(Job<?> job) {
+    public final void completedJob(Job<?> job, NIOProfile p) {
         // End profile
         this.profile.end();
+
+        TaskMonitor monitor = this.task.getTaskMonitor();
+        if (monitor instanceof DeadlineMonitor) {
+            ((DeadlineMonitor) monitor).onSuccesfulExecution(p);
+            if (p != null) {
+                JOB_LOGGER.info("Task " + this.task.getId() + " started at " + p.getStartTime() + "ms and finished at "
+                    + p.getEndTime() + " ms lasting " + (p.getEndTime() - p.getStartTime()) + " ms");
+            }
+        }
 
         // Notify end
         int jobId = job.getJobId();

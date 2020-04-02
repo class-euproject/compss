@@ -111,6 +111,10 @@ public class MethodWorker extends Worker<MethodResourceDescription> {
         return this.name;
     }
 
+    public Map<String, String> getSharedDisks() {
+        return sharedDisks;
+    }
+
     @Override
     protected int limitIdealSimultaneousTasks(int ideal) {
         return Math.min(this.getMaxCPUTaskCount(), ideal);

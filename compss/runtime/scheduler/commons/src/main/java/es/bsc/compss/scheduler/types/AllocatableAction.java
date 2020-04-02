@@ -1170,6 +1170,10 @@ public abstract class AllocatableAction {
     public abstract <T extends WorkerResourceDescription> void schedule(ResourceScheduler<T> targetWorker,
         Implementation impl) throws BlockedActionException, UnassignedActionException;
 
+    public ActionOrchestrator getActionOrchestrator() {
+        return this.orchestrator;
+    }
+
     @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();

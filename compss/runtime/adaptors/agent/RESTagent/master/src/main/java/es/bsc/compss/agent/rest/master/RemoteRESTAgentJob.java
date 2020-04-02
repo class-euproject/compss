@@ -207,7 +207,7 @@ public class RemoteRESTAgentJob extends Job<RemoteRESTAgent> {
                     System.out.println("SUBMISSION[" + getJobId() + "] Job completed.");
                     stageout(paramTypes, paramLocations);
                     if (endStatus == JobEndStatus.OK) {
-                        getListener().jobCompleted(RemoteRESTAgentJob.this);
+                        getListener().jobCompleted(RemoteRESTAgentJob.this, null);
                     } else {
                         getListener().jobFailed(RemoteRESTAgentJob.this, endStatus, null);
                     }

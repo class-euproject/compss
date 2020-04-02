@@ -79,7 +79,7 @@ public class TaskScheduler {
     private ActionOrchestrator orchestrator;
 
     // Map of available workers and its resource schedulers
-    private final WorkersMap workers;
+    protected final WorkersMap workers;
 
     // List of blocked actions
     private final ActionSet blockedActions;
@@ -1473,7 +1473,7 @@ public class TaskScheduler {
     }
 
 
-    private class WorkersMap {
+    protected class WorkersMap {
 
         private final Map<Worker<? extends WorkerResourceDescription>,
             ResourceScheduler<? extends WorkerResourceDescription>> map;
@@ -1496,7 +1496,7 @@ public class TaskScheduler {
             this.map.remove(resource);
         }
 
-        private Collection<ResourceScheduler<? extends WorkerResourceDescription>> values() {
+        public Collection<ResourceScheduler<? extends WorkerResourceDescription>> values() {
             return map.values();
         }
     }

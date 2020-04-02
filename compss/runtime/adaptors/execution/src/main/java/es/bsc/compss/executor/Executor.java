@@ -19,6 +19,7 @@ package es.bsc.compss.executor;
 
 import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.COMPSsConstants.Lang;
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.executor.external.ExecutionPlatformMirror;
 import es.bsc.compss.executor.external.persistent.PersistentMirror;
 import es.bsc.compss.executor.external.piped.PipePair;
@@ -195,7 +196,12 @@ public class Executor implements Runnable {
                 LOGGER.debug("Dequeuing job " + invocation.getJobId());
             }
 
+            // NIOProfile for the scheduler
+            NIOProfile p = new NIOProfile();
+            p.start();
             Exception e = execute(invocation);
+
+            p.end();
             boolean success = (e == null);
 
             if (WORKER_DEBUG) {
@@ -208,9 +214,9 @@ public class Executor implements Runnable {
             }
 
             if (e instanceof COMPSsException) {
-                execution.notifyEnd((COMPSsException) e, success);
+                execution.notifyEnd((COMPSsException) e, success, p);
             } else {
-                execution.notifyEnd(null, success);
+                execution.notifyEnd(null, success, p);
             }
         }
     }
@@ -320,6 +326,7 @@ public class Executor implements Runnable {
                 this.timer.schedule(timerTask, timeout);
             }
             executeTask(assignedResources, invocation, twd.getWorkingDir());
+
             if (timerTask != null) {
                 timerTask.cancel();
             }

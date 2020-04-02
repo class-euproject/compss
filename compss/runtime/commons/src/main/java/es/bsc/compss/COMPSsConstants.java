@@ -107,6 +107,7 @@ public class COMPSsConstants {
     public static final String INPUT_PROFILE = "compss.profile.input";
     public static final String OUTPUT_PROFILE = "compss.profile.output";
     public static final String EXTERNAL_ADAPTATION = "compss.external.adaptation";
+    public static final String TASK_MONITOR = "compss.task_monitor";
 
     public static final String WORKER_CP = "compss.worker.cp";
     public static final String WORKER_PP = "compss.worker.pythonpath";
@@ -166,6 +167,8 @@ public class COMPSsConstants {
      * DEFAULT VALUES: According to runcompss script !!!!
      */
     public static final String DEFAULT_SCHEDULER = "es.bsc.compss.components.impl.TaskScheduler";
+
+    public static final String DEFAULT_TASK_MONITOR = "es.bsc.compss.types.DoNothingTaskMonitor";
 
     public static final String SERVICE_ADAPTOR = "es.bsc.compss.ws.master.WSAdaptor";
 

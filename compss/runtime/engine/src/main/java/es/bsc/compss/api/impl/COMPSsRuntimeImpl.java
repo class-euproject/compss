@@ -72,6 +72,7 @@ import es.bsc.compss.worker.COMPSsException;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -129,7 +130,7 @@ public class COMPSsRuntimeImpl implements COMPSsRuntime, LoaderAPI, FatalErrorHa
     private static final Logger LOGGER = LogManager.getLogger(Loggers.API);
 
     // External Task monitor
-    private static final TaskMonitor DO_NOTHING_MONITOR = new DoNothingTaskMonitor();
+    private static TaskMonitor monitor;
 
     static {
         // Load Runtime configuration parameters
@@ -155,12 +156,28 @@ public class COMPSsRuntimeImpl implements COMPSsRuntime, LoaderAPI, FatalErrorHa
             }
         }
 
+        monitor = constructTaskMonitor();
+
         /*
          * Initializes the COMM library and the MasterResource (Master reconfigures the logger)
          */
         Comm.init(new MasterResourceImpl());
     }
 
+
+    private static TaskMonitor constructTaskMonitor() {
+        TaskMonitor monitor = null;
+        try {
+            String taskMonitorFQN = System.getProperty(COMPSsConstants.TASK_MONITOR);
+            Class<?> taskMonitorClass = Class.forName(taskMonitorFQN);
+            Constructor<?> taskMonitorCnstr = taskMonitorClass.getDeclaredConstructors()[0];
+            monitor = (TaskMonitor) taskMonitorCnstr.newInstance();
+            LOGGER.info("Loaded Task Monitor " + monitor);
+        } catch (Exception e) {
+            ErrorManager.fatal("Error loading task monitor", e);
+        }
+        return monitor;
+    }
 
     // Code Added to support configuration files
     private static void setPropertiesFromRuntime(RuntimeConfigManager manager) {
@@ -206,6 +223,9 @@ public class COMPSsRuntimeImpl implements COMPSsRuntime, LoaderAPI, FatalErrorHa
 
                 if (manager.getScheduler() != null && System.getProperty(COMPSsConstants.SCHEDULER) == null) {
                     System.setProperty(COMPSsConstants.SCHEDULER, manager.getScheduler());
+                }
+                if (manager.getTaskMonitor() != null && System.getProperty(COMPSsConstants.TASK_MONITOR) == null) {
+                    System.setProperty(COMPSsConstants.TASK_MONITOR, manager.getTaskMonitor());
                 }
                 if (manager.getMonitorInterval() > 0 && System.getProperty(COMPSsConstants.MONITOR) == null) {
                     System.setProperty(COMPSsConstants.MONITOR, Long.toString(manager.getMonitorInterval()));
@@ -318,6 +338,10 @@ public class COMPSsRuntimeImpl implements COMPSsRuntime, LoaderAPI, FatalErrorHa
         if (System.getProperty(COMPSsConstants.SCHEDULER) == null
             || System.getProperty(COMPSsConstants.SCHEDULER).isEmpty()) {
             System.setProperty(COMPSsConstants.SCHEDULER, COMPSsConstants.DEFAULT_SCHEDULER);
+        }
+        if (System.getProperty(COMPSsConstants.TASK_MONITOR) == null
+            || System.getProperty(COMPSsConstants.TASK_MONITOR).isEmpty()) {
+            System.setProperty(COMPSsConstants.TASK_MONITOR, COMPSsConstants.DEFAULT_TASK_MONITOR);
         }
         if (System.getProperty(COMPSsConstants.TRACING) == null
             || System.getProperty(COMPSsConstants.TRACING).isEmpty()) {
@@ -735,7 +759,7 @@ public class COMPSsRuntimeImpl implements COMPSsRuntime, LoaderAPI, FatalErrorHa
         int numReturns = hasReturn ? 1 : 0;
 
         if (monitor == null) {
-            monitor = DO_NOTHING_MONITOR;
+            monitor = this.monitor;
         }
 
         // Register the task
@@ -807,7 +831,7 @@ public class COMPSsRuntimeImpl implements COMPSsRuntime, LoaderAPI, FatalErrorHa
         }
 
         if (monitor == null) {
-            monitor = DO_NOTHING_MONITOR;
+            monitor = this.monitor;
         }
 
         if (lang == null) {
@@ -1148,6 +1172,10 @@ public class COMPSsRuntimeImpl implements COMPSsRuntime, LoaderAPI, FatalErrorHa
         if (Tracer.extraeEnabled()) {
             Tracer.emitEvent(Tracer.EVENT_END, TraceEvent.OPEN_FILE.getType());
         }
+
+        File f = new File(finalPath);
+        long size = f.length();
+        LOGGER.info("New output value generated " + finalPath + " with size " + size);
 
         return finalPath;
     }

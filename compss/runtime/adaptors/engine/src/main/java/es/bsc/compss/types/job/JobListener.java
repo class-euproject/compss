@@ -16,6 +16,7 @@
  */
 package es.bsc.compss.types.job;
 
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.types.job.JobEndStatus;
 import es.bsc.compss.worker.COMPSsException;
 
@@ -30,7 +31,7 @@ public interface JobListener {
      * 
      * @param job Job to notify completion.
      */
-    public void jobCompleted(Job<?> job);
+    public void jobCompleted(Job<?> job, NIOProfile p);
 
     /**
      * Actions when job has failed.

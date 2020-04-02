@@ -665,6 +665,12 @@ public class DataManagerImpl implements DataManager {
                 // Already stored on the binding
                 break;
             case FILE_T:
+                String fileName = param.getDataMgmtId();
+                String name = (String) param.getValue();
+                File f = new File(name);
+                long size = f.length();
+                WORKER_LOGGER.info("New output value generated " + fileName + " with size " + size);
+                break;
             case EXTERNAL_STREAM_T:
                 // Already stored
                 break;

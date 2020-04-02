@@ -16,6 +16,7 @@
  */
 package es.bsc.compss.executor.types;
 
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.types.execution.Invocation;
 import es.bsc.compss.worker.COMPSsException;
 
@@ -29,6 +30,6 @@ public interface ExecutionListener {
      * @param success Whether the task was successful or not.
      * @param e COMPSsException for task groups.
      */
-    public void notifyEnd(Invocation invocation, boolean success, COMPSsException e);
+    public void notifyEnd(Invocation invocation, boolean success, COMPSsException e, NIOProfile p);
 
 }

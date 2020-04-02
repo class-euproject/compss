@@ -255,11 +255,11 @@ public class GATJob extends es.bsc.compss.types.job.Job<GATWorkerNode> implement
                             localFile.delete();
                         }
                         RUNNING_JOBS.remove(this);
-                        listener.jobCompleted(this);
+                        listener.jobCompleted(this, null);
                     }
                 } else if (job.getExitStatus() == 0) {
                     RUNNING_JOBS.remove(this);
-                    listener.jobCompleted(this);
+                    listener.jobCompleted(this, null);
                 } else {
                     gatJob = null;
                     RUNNING_JOBS.remove(this);
@@ -278,7 +278,7 @@ public class GATJob extends es.bsc.compss.types.job.Job<GATWorkerNode> implement
             try {
                 if (usingGlobus && job.getInfo().get("resManError").equals("NO_ERROR")) {
                     RUNNING_JOBS.remove(this);
-                    listener.jobCompleted(this);
+                    listener.jobCompleted(this, null);
                 } else {
                     gatJob = null;
                     RUNNING_JOBS.remove(this);

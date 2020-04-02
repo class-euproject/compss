@@ -19,6 +19,7 @@ package es.bsc.compss.types;
 import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.COMPSsConstants.Lang;
 import es.bsc.compss.COMPSsConstants.TaskExecution;
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.comm.Comm;
 import es.bsc.compss.comm.CommAdaptor;
 import es.bsc.compss.data.BindingDataManager;
@@ -1158,7 +1159,7 @@ public final class COMPSsMaster extends COMPSsWorker implements InvocationContex
         Execution exec = new Execution(job, new ExecutionListener() {
 
             @Override
-            public void notifyEnd(Invocation invocation, boolean success, COMPSsException e) {
+            public void notifyEnd(Invocation invocation, boolean success, COMPSsException e, NIOProfile np) {
                 for (LocalParameter p : job.getParams()) {
                     updateParameter(p);
                 }
@@ -1171,7 +1172,7 @@ public final class COMPSsMaster extends COMPSsWorker implements InvocationContex
                 }
 
                 if (success) {
-                    job.getListener().jobCompleted(job);
+                    job.getListener().jobCompleted(job, np);
                 } else {
                     if (e != null) {
                         job.getListener().jobFailed(job, JobEndStatus.EXCEPTION, e);

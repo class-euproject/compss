@@ -77,6 +77,7 @@ DEFAULT_CPU_AFFINITY="automatic" # disabled, automatic, user string
 DEFAULT_GPU_AFFINITY="automatic" # disabled, automatic, user string
 DEFAULT_FPGA_AFFINITY="automatic" # disabled, automatic, user string
 DEFAULT_FPGA_REPROGRAM=""
+DEFAULT_TASK_MONITOR=es.bsc.compss.types.DoNothingTaskMonitor;
 
 DEFAULT_DEBUGGER=false
 DEFAULT_DEBUGGER_ARGUMENT=true
@@ -221,6 +222,10 @@ show_opts() {
                                                    Default: $DEFAULT_PYTHON_PROPAGATE_VIRTUAL_ENVIRONMENT
     --python_mpi_worker=<false>             Use MPI to run the python worker instead of multiprocessing. (true/false).
                                             Default: $DEFAULT_PYTHON_MPI_WORKER
+    --task_monitor=<className>              Class that implements the Task Monitor for COMPSs
+                                            Supported task monitors: es.bsc.compss.types.DoNothingTaskMonitor
+                                                                     | es.bsc.compss.types.DeadlineMonitor
+                                            Default: ${DEFAULT_TASK_MONITOR}
 
 * Application name:
     For Java applications:   Fully qualified name of the application
@@ -656,6 +661,10 @@ get_args() {
             # Enable or disable the virtual environment propagation
             python_mpi_worker=${OPTARG//python_mpi_worker=/}
             ;;
+          task_monitor=*)
+            # Task Monitor main class
+            task_monitor=${OPTARG//task_monitor=/}
+	    ;;
 	      gen_coredump)
             # Enable coredump generation
             gen_core=true
@@ -883,6 +892,11 @@ check_args() {
   # Scheduler
   if [ -z "$scheduler" ]; then
     scheduler=${DEFAULT_SCHEDULER}
+  fi
+
+  # Task Monitor
+  if [ -z "$task_monitor" ]; then
+    task_monitor=${DEFAULT_TASK_MONITOR}
   fi
 
   # Classpath
@@ -1178,6 +1192,7 @@ ${jvm_debugger_opts}
 -Dcompss.masterName=${master_name}
 -Dcompss.masterPort=${master_port}
 -Dcompss.scheduler=${scheduler}
+-Dcompss.task_monitor=${task_monitor}
 -Dgat.adaptor.path=${GAT_LOCATION}/lib/adaptors
 -Dgat.debug=false
 -Dgat.broker.adaptor=sshtrilead

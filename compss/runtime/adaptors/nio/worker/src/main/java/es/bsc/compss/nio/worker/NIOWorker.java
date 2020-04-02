@@ -24,6 +24,7 @@ import es.bsc.comm.stage.Transfer.Destination;
 import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.COMPSsConstants.Lang;
 import es.bsc.compss.COMPSsConstants.TaskExecution;
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.data.DataManager;
 import es.bsc.compss.data.DataProvider;
 import es.bsc.compss.data.FetchDataListener;
@@ -476,12 +477,12 @@ public class NIOWorker extends NIOAgent implements InvocationContext, DataProvid
      * @param invocation Associated Invocation.
      * @param successful Whether the task has ended successfully or not.
      */
-    public void sendTaskDone(Invocation invocation, boolean successful, Exception e) {
+    public void sendTaskDone(Invocation invocation, boolean successful, Exception e, NIOProfile p) {
         NIOTask nt = (NIOTask) invocation;
         int jobId = nt.getJobId();
         int taskId = nt.getTaskId();
 
-        NIOTaskResult tr = new NIOTaskResult(jobId, nt.getParams(), nt.getTarget(), nt.getResults());
+        NIOTaskResult tr = new NIOTaskResult(jobId, nt.getParams(), nt.getTarget(), nt.getResults(), p);
         if (WORKER_LOGGER_DEBUG) {
             WORKER_LOGGER.debug("RESULT FOR JOB " + jobId + " (TASK ID: " + taskId + ")");
             WORKER_LOGGER.debug(tr);

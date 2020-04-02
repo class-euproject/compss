@@ -16,6 +16,7 @@
  */
 package es.bsc.compss.nio.master;
 
+import es.bsc.compss.NIOProfile;
 import es.bsc.compss.nio.NIOParam;
 import es.bsc.compss.nio.NIOTask;
 import es.bsc.compss.nio.master.utils.NIOParamFactory;
@@ -138,10 +139,11 @@ public class NIOJob extends Job<NIOWorkerNode> {
      *
      * @param successful {@code true} if the task has successfully finished, {@code false} otherwise.
      * @param e Exception rised during the task execution, {@literal null} if no exception was rised.
+     * @param e Exception rised during the task execution, {@literal null} if no exception was rised.
      */
-    public void taskFinished(boolean successful, Exception e) {
+    public void taskFinished(boolean successful, Exception e, NIOProfile p) {
         if (successful) {
-            listener.jobCompleted(this);
+            listener.jobCompleted(this, p);
         } else {
             if (e instanceof COMPSsException) {
                 listener.jobFailed(this, JobEndStatus.EXCEPTION, (COMPSsException) e);
