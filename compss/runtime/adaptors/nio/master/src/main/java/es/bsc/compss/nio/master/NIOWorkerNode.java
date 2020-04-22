@@ -41,7 +41,6 @@ import es.bsc.compss.nio.commands.workerfiles.CommandGenerateWorkerDebugFiles;
 import es.bsc.compss.nio.master.configuration.NIOConfiguration;
 import es.bsc.compss.nio.master.starters.DockerStarter;
 import es.bsc.compss.nio.master.starters.LXCStarter;
-import es.bsc.compss.nio.master.starters.RotterdamStarter;
 import es.bsc.compss.nio.master.starters.Starter;
 import es.bsc.compss.nio.master.starters.WorkerStarter;
 import es.bsc.compss.nio.master.utils.NIOParamFactory;
@@ -144,12 +143,6 @@ public class NIOWorkerNode extends COMPSsWorker {
                 case "lxc":
                     this.workerStarter = new LXCStarter(this);
                     break;
-                case "rotterdam":
-                    this.workerStarter = new RotterdamStarter(this);
-                    break;
-                // case "rancher":
-                // this.workerStarter = new RancherStarter(this);
-                // break;
                 case "none":
                     this.workerStarter = new WorkerStarter(this);
                     break;

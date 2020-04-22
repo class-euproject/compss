@@ -37,6 +37,7 @@
             <groupId>es.bsc.conn</groupId>
             <artifactId>connectors-all</artifactId>
             <version>${conn.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>es.bsc.compss</groupId>
@@ -165,6 +166,15 @@
                                     <outputDirectory>${project.build.directory}/cloud-conn/</outputDirectory>
                                     <destFileName>treelogic-conn.jar</destFileName>
                                 </artifactItem>
+                                <!--<artifactItem>
+                                    <groupId>es.bsc.conn</groupId>
+                                    <artifactId>rancher-conn</artifactId>
+                                    <version>${conn.version}</version>
+                                    <type>jar</type>
+                                    <overWrite>false</overWrite>
+                                    <outputDirectory>${project.build.directory}/cloud-conn/</outputDirectory>
+                                    <destFileName>rancher-conn.jar</destFileName>
+                                </artifactItem>-->
                             </artifactItems>
                             <overWriteReleases>false</overWriteReleases>
                             <overWriteSnapshots>true</overWriteSnapshots>

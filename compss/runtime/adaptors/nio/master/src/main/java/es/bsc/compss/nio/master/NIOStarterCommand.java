@@ -36,6 +36,7 @@ public class NIOStarterCommand extends WorkerStarterCommand {
         + File.separator + "adaptors" + File.separator + "nio" + File.separator;
 
     private static final String STARTER_SCRIPT_NAME = "persistent_worker.sh";
+    private static final String CONTAINER_STARTER_SCRIPT_NAME = "persistent_worker_starter.sh";
 
     private String scriptName;
 
@@ -64,10 +65,12 @@ public class NIOStarterCommand extends WorkerStarterCommand {
         super(workerName, workerPort, masterName, workingDir, installDir, appDir, classpathFromFile, pythonpathFromFile,
             libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks, hostId);
 
-        scriptName = installDir + (installDir.endsWith(File.separator) ? "" : File.separator) + SCRIPT_PATH
-            + STARTER_SCRIPT_NAME;
         if (isContainer) {
-            this.appDir = "/compss";
+            this.scriptName = installDir + (installDir.endsWith(File.separator) ? "" : File.separator) + SCRIPT_PATH
+                + CONTAINER_STARTER_SCRIPT_NAME;
+            if (this.appDir == null || "".equals(this.appDir) || "null".equals(this.appDir)) {
+                this.appDir = "/compss";
+            }
             if ("python".equals(this.lang.toLowerCase())) {
                 this.workerPythonpath += LIB_SEPARATOR + appDir;
             } else if ("java".equals(this.lang.toLowerCase())) {
@@ -75,6 +78,9 @@ public class NIOStarterCommand extends WorkerStarterCommand {
                 String jarName = paths[1].split("/")[paths[1].split("/").length - 1];
                 this.workerClasspath += LIB_SEPARATOR + appDir + LIB_SEPARATOR + appDir + "/" + jarName;
             }
+        } else {
+            this.scriptName = installDir + (installDir.endsWith(File.separator) ? "" : File.separator) + SCRIPT_PATH
+                + STARTER_SCRIPT_NAME;
         }
 
     }
