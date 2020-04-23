@@ -34,6 +34,7 @@ import es.bsc.compss.types.allocatableactions.TransferValueAction;
 import es.bsc.compss.types.annotations.parameter.Direction;
 import es.bsc.compss.types.parameter.DependencyParameter;
 import es.bsc.compss.types.parameter.Parameter;
+import es.bsc.compss.types.resources.CloudMethodWorker;
 import es.bsc.compss.types.resources.Worker;
 import es.bsc.compss.types.resources.WorkerResourceDescription;
 import es.bsc.compss.util.ErrorManager;
@@ -74,6 +75,10 @@ public class PaperScheduler extends TaskScheduler {
 
     private List<AllocatableAction> unassignedActions;
 
+    private List<AbstractMap.SimpleEntry<String, String>> cloudWorkers;
+
+    private boolean noWorkers;
+
 
     /**
      * Constructs a new Paper Scheduler instance.
@@ -84,6 +89,8 @@ public class PaperScheduler extends TaskScheduler {
         // readInputFile();
         this.unassignedActions = new ArrayList<>();
         this.orderInWorkers = new LinkedHashMap<>();
+        this.cloudWorkers = new ArrayList<>();
+        noWorkers = true;
     }
 
     private void readInputFile() {
@@ -153,6 +160,12 @@ public class PaperScheduler extends TaskScheduler {
     public <T extends WorkerResourceDescription> PaperResourceScheduler<T> generateSchedulerForResource(Worker<T> w,
         JSONObject resJSON, JSONObject implJSON) {
         LOGGER.debug("[PaperScheduler] Generate scheduler for resource " + w.getName());
+        noWorkers = false;
+        if (w instanceof CloudMethodWorker) {
+            LOGGER.debug("[PaperScheduler] CLOUD METHOD WORKER " + w.getName());
+            cloudWorkers
+                .add(new AbstractMap.SimpleEntry<>(w.getName(), ((CloudMethodWorker) w).getProvider().getName()));
+        }
         return new PaperResourceScheduler<>(w, resJSON, implJSON, this);
     }
 
@@ -177,11 +190,16 @@ public class PaperScheduler extends TaskScheduler {
      */
 
     private void initializeHeuristics() {
-        if (lnsnl == null) {
-            List<String> workingWorkerList =
-                this.workers.values().stream().map(ResourceScheduler::getName).collect(Collectors.toList());
+        List<String> workingWorkerList =
+            this.workers.values().stream().map(ResourceScheduler::getName).collect(Collectors.toList());
+        if (workingWorkerList.isEmpty()) { // no workers still available to run
+            noWorkers = true;
+        } else if (lnsnl == null) {
             lnsnl = new LNSNL(workingWorkerList);
             this.numTasks = lnsnl.getNumTasks();
+            for (AbstractMap.SimpleEntry<String, String> worker : cloudWorkers) {
+                lnsnl.addResourceCloud(worker.getKey(), worker.getValue());
+            }
             Result res = lnsnl.schedule();
             updateInternalStructures(res);
         } else { // lnsnl already set, remove previous tasks
@@ -189,6 +207,13 @@ public class PaperScheduler extends TaskScheduler {
                 orderInWorkers.get(name).replaceAll(e -> null);
             }
         }
+        // TODO: check if correct for considering new workers deployed after first worker present and refactor
+
+        /*
+         * if (!noWorkers && lnsnl != null) { System.out.println("HAHAAHAHAHAHAH I ENTER HEREE"); for
+         * (AbstractMap.SimpleEntry<String, String> worker : cloudWorkers) { lnsnl.addResourceCloud(worker.getKey(),
+         * worker.getValue()); } Result res = lnsnl.schedule(); updateInternalStructures(res); }
+         */
     }
 
     private void updateInternalStructures(Result res) {
@@ -210,18 +235,22 @@ public class PaperScheduler extends TaskScheduler {
     @Override
     protected void scheduleAction(AllocatableAction action, Score actionScore) throws BlockedActionException {
         LOGGER.debug("[PaperScheduler] Scheduling action " + action);
-        int id = ((ExecutionAction) action).getTask().getId();
-        if (id == 1 || (numTasks != 0 && (((id - 1) % numTasks) + 1) == 1)) {
-            initializeHeuristics();
-        }
-        id = ((id - 1) % numTasks) + 1;
-        String name = getResourceForTask(id);
-        addDependenciesToAction(action, name, id);
-        advanceTransfers(action);
-        try {
-            action.schedule(workers.get(ResourceManager.getWorker(name)), actionScore);
-        } catch (UnassignedActionException uae) {
-            LOGGER.warn("[PaperScheduler] Action " + action + " is unassigned");
+        if (!noWorkers) {
+            int id = ((ExecutionAction) action).getTask().getId();
+            if (id == 1 || (numTasks != 0 && (((id - 1) % numTasks) + 1) == 1)) {
+                initializeHeuristics();
+            }
+            id = ((id - 1) % numTasks) + 1;
+            String name = getResourceForTask(id);
+            addDependenciesToAction(action, name, id);
+            advanceTransfers(action);
+            try {
+                action.schedule(workers.get(ResourceManager.getWorker(name)), actionScore);
+            } catch (UnassignedActionException uae) {
+                LOGGER.warn("[PaperScheduler] Action " + action + " is unassigned");
+                this.unassignedActions.add(action);
+            }
+        } else {
             this.unassignedActions.add(action);
         }
     }

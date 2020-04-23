@@ -198,11 +198,6 @@ public class Resources {
         }
         this.ibw = newIBW;
 
-        System.out.println("CLOUD PROVIDER " + cloudProvider);
-        for (String nameW : posByName.keySet()) {
-            System.out.println("POS BY BAME " + nameW);
-        }
-
         int pos = this.posByName.get(cloudProvider);
         int i = 0;
         for (String worker : this.originalWorkers) {

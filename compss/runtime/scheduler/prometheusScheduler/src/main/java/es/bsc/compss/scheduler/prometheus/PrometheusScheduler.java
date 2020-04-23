@@ -34,6 +34,7 @@ import es.bsc.compss.types.allocatableactions.TransferValueAction;
 import es.bsc.compss.types.annotations.parameter.Direction;
 import es.bsc.compss.types.parameter.DependencyParameter;
 import es.bsc.compss.types.parameter.Parameter;
+import es.bsc.compss.types.resources.CloudMethodWorker;
 import es.bsc.compss.types.resources.Worker;
 import es.bsc.compss.types.resources.WorkerResourceDescription;
 import es.bsc.compss.util.ErrorManager;
@@ -47,15 +48,8 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
-import java.util.Collections;
 
 import org.json.JSONObject;
 
@@ -69,7 +63,7 @@ public class PrometheusScheduler extends TaskScheduler {
     private LinkedHashMap<Long, String> taskResource;
 
     // map that contains, for each resource, the order of the task execution given by the ILP
-    private LinkedHashMap<String, ArrayList<AllocatableAction>> map;
+    private LinkedHashMap<String, ArrayList<AllocatableAction>> orderInWorkers;
 
     // map
     private LinkedHashMap<String, OptimizationAction> opActions;
@@ -108,6 +102,10 @@ public class PrometheusScheduler extends TaskScheduler {
 
     private float rub;
 
+    private List<AbstractMap.SimpleEntry<String, String>> cloudWorkers;
+
+    private boolean noWorkers;
+
 
     /**
      * Constructs a new Ready Scheduler instance.
@@ -121,7 +119,9 @@ public class PrometheusScheduler extends TaskScheduler {
         secondRound = false;
         zeroTime = -1; // to discard the tasks of the warm up phase
         this.unassignedActions = new ArrayList<>();
-        this.map = new LinkedHashMap<>();
+        this.orderInWorkers = new LinkedHashMap<>();
+        this.cloudWorkers = new ArrayList<>();
+        noWorkers = true;
     }
 
     private void setUpPrometheusConnection() throws Exception {
@@ -155,7 +155,7 @@ public class PrometheusScheduler extends TaskScheduler {
             }
 
             this.iters = new int[taskResource.size()];
-            this.map = new LinkedHashMap<>();
+            this.orderInWorkers = new LinkedHashMap<>();
             this.opActions = new LinkedHashMap<>();
             String resource = lines.trim().split("\\s+")[1];
             while ((lines = br.readLine()) != null) {
@@ -164,19 +164,20 @@ public class PrometheusScheduler extends TaskScheduler {
                     continue;
                 }
                 taskId = Long.parseLong(lines);
-                if (this.map.containsKey(resource)) {
-                    this.map.get(resource).add(null);
+                if (this.orderInWorkers.containsKey(resource)) {
+                    this.orderInWorkers.get(resource).add(null);
                 } else {
                     ArrayList<AllocatableAction> orderedTasks = new ArrayList<>(); // empty, ExecutionActions will
                     // be added as they are scheduled
                     orderedTasks.add(null);
-                    this.map.put(resource, orderedTasks);
+                    this.orderInWorkers.put(resource, orderedTasks);
 
                     OptimizationAction opAction = new OptimizationAction();
                     this.opActions.put(resource, opAction);
                 }
-                this.iters[(int) taskId - 1] = this.map.get(resource).size() - 1; // ExecAction order in the array
-                                                                                  // marked
+                this.iters[(int) taskId - 1] = this.orderInWorkers.get(resource).size() - 1; // ExecAction order in the
+                                                                                             // array
+                // marked
                 // by iters array
             }
         } catch (IOException ioe) {
@@ -211,6 +212,12 @@ public class PrometheusScheduler extends TaskScheduler {
         generateSchedulerForResource(Worker<T> w, JSONObject resJSON, JSONObject implJSON) {
         LOGGER.debug("[PrometheusScheduler] Generate scheduler for resource " + w.getName());
         initializeCounter();
+        noWorkers = false;
+        if (w instanceof CloudMethodWorker) {
+            LOGGER.debug("[PaperScheduler] CLOUD METHOD WORKER " + w.getName());
+            cloudWorkers
+                .add(new AbstractMap.SimpleEntry<>(w.getName(), ((CloudMethodWorker) w).getProvider().getName()));
+        }
         return new PrometheusResourceScheduler<>(w, resJSON, implJSON, this);
     }
 
@@ -235,14 +242,30 @@ public class PrometheusScheduler extends TaskScheduler {
      */
 
     private void initializeHeuristics() {
-        if (lnsnl == null) {
-            List<String> workingWorkerList =
-                this.workers.values().stream().map(ResourceScheduler::getName).collect(Collectors.toList());
+        List<String> workingWorkerList =
+            this.workers.values().stream().map(ResourceScheduler::getName).collect(Collectors.toList());
+        if (workingWorkerList.isEmpty()) { // no workers still available to run
+            noWorkers = true;
+        } else if (lnsnl == null) {
             lnsnl = new LNSNL(workingWorkerList);
             this.numTasks = lnsnl.getNumTasks();
+            for (AbstractMap.SimpleEntry<String, String> worker : cloudWorkers) {
+                lnsnl.addResourceCloud(worker.getKey(), worker.getValue());
+            }
             Result res = lnsnl.schedule();
             updateInternalStructures(res);
+        } else { // lnsnl already set, remove previous tasks
+            for (String name : orderInWorkers.keySet()) {
+                orderInWorkers.get(name).replaceAll(e -> null);
+            }
         }
+        // TODO: check if correct for considering new workers deployed after first worker present and refactor
+
+        /*
+         * if (!noWorkers && lnsnl != null) { System.out.println("HAHAAHAHAHAHAH I ENTER HEREE"); for
+         * (AbstractMap.SimpleEntry<String, String> worker : cloudWorkers) { lnsnl.addResourceCloud(worker.getKey(),
+         * worker.getValue()); } Result res = lnsnl.schedule(); updateInternalStructures(res); }
+         */
     }
 
     private void updateInternalStructures(Result res) {
@@ -253,7 +276,7 @@ public class PrometheusScheduler extends TaskScheduler {
             ArrayList<Integer> aux = (ArrayList) mapRes.get(name);
             if (aux != null) {
                 ArrayList<AllocatableAction> value = new ArrayList<>(Collections.nCopies(aux.size(), null));
-                map.put(name, value);
+                orderInWorkers.put(name, value);
             }
             OptimizationAction opAction = new OptimizationAction();
             this.opActions.put(name, opAction);
@@ -293,22 +316,27 @@ public class PrometheusScheduler extends TaskScheduler {
     @Override
     protected void scheduleAction(AllocatableAction action, Score actionScore) throws BlockedActionException {
         LOGGER.debug("[PrometheusScheduler] Scheduling action " + action + " with " + numTasks + " tasks");
-        int id = ((ExecutionAction) action).getTask().getId();
-        if (id == 1) {
-            initializeHeuristics();
-        }
-        int auxId = ((id - 1) % numTasks) + 1;
-        if (id != 1 && auxId == 1) {
-            secondRound = true;
-        }
-        id = auxId;
-        String name = getResourceForTask(id);
-        addDependenciesToAction(action, name, id);
-        advanceTransfers(action);
-        try {
-            action.schedule(workers.get(ResourceManager.getWorker(name)), actionScore);
-        } catch (UnassignedActionException uae) {
-            LOGGER.warn("[PrometheusScheduler] Action " + action + " is unassigned");
+        if (!noWorkers) {
+            int id = ((ExecutionAction) action).getTask().getId();
+            // if (id == 1) {
+            if (id == 1 || (numTasks != 0 && (((id - 1) % numTasks) + 1) == 1)) {
+                initializeHeuristics();
+            }
+            int auxId = ((id - 1) % numTasks) + 1;
+            if (id != 1 && auxId == 1) {
+                secondRound = true;
+            }
+            id = auxId;
+            String name = getResourceForTask(id);
+            addDependenciesToAction(action, name, id);
+            advanceTransfers(action);
+            try {
+                action.schedule(workers.get(ResourceManager.getWorker(name)), actionScore);
+            } catch (UnassignedActionException uae) {
+                LOGGER.warn("[PrometheusScheduler] Action " + action + " is unassigned");
+                this.unassignedActions.add(action);
+            }
+        } else {
             this.unassignedActions.add(action);
         }
     }
@@ -323,10 +351,10 @@ public class PrometheusScheduler extends TaskScheduler {
         // checks if there are pending dependencies to be added between actions (if opAction has successors)
         fillDependencies(action, name, pos);
 
-        this.map.get(name).set(pos, action); // add the action received in order to be able to
+        this.orderInWorkers.get(name).set(pos, action); // add the action received in order to be able to
         // access it when its successors arrive
 
-        ArrayList<AllocatableAction> predecessors = this.map.get(name);
+        ArrayList<AllocatableAction> predecessors = this.orderInWorkers.get(name);
         while (pos > 0) {
             AllocatableAction pred = predecessors.get(pos - 1);
             if (pred != null) {
@@ -488,7 +516,7 @@ public class PrometheusScheduler extends TaskScheduler {
      * @param taskId Id of the task that has finished its execution.
      */
     public AllocatableAction getNextTaskForResource(String resourceName, long taskId) {
-        ArrayList<AllocatableAction> orderedTasks = map.get(resourceName);
+        ArrayList<AllocatableAction> orderedTasks = orderInWorkers.get(resourceName);
         int pos = iters[(int) taskId - 1] + 1;
         AllocatableAction nextTask;
         if (pos == orderedTasks.size()) { // it is the last task to be executed on that resource
