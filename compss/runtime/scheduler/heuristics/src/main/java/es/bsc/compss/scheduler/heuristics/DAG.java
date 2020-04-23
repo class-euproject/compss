@@ -19,6 +19,7 @@ package es.bsc.compss.scheduler.heuristics;
 
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 
@@ -39,13 +40,22 @@ public class DAG {
 
     private float safetyMargin;
 
+    private List<String> workerOrder;
 
-    public DAG(Map<String, float[]> C, float[][] z, boolean[][] succ, int n) {
+
+    public DAG(Map<String, float[]> C, float[][] z, boolean[][] succ, int n, List<Boolean> isCloud,
+        List<String> workersOrder) {
         this.C = new HashMap<>();
         this.origC = new HashMap<>();
         for (String worker : C.keySet()) {
             this.C.put(worker, Arrays.copyOf(C.get(worker), n));
             this.origC.put(worker, Arrays.copyOf(C.get(worker), n));
+        }
+
+        for (int i = 0; i < isCloud.size(); i++) {
+            if (isCloud.get(i)) {
+                this.C.remove(workersOrder.get(i));
+            }
         }
 
         this.z = Arrays.copyOf(z, z.length);
@@ -96,6 +106,14 @@ public class DAG {
 
     public void addResource(String worker) {
         float[] tmp = Arrays.copyOf(this.origC.get(worker), this.n);
+        for (int i = 0; i < this.n; ++i) {
+            tmp[i] += tmp[i] * this.safetyMargin;
+        }
+        this.C.put(worker, tmp);
+    }
+
+    public void addResourceCloud(String cloudProvider, String worker) {
+        float[] tmp = Arrays.copyOf(this.origC.get(cloudProvider), this.n);
         for (int i = 0; i < this.n; ++i) {
             tmp[i] += tmp[i] * this.safetyMargin;
         }
