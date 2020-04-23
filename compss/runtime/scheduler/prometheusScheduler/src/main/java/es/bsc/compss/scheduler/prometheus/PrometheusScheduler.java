@@ -323,7 +323,8 @@ public class PrometheusScheduler extends TaskScheduler {
                 initializeHeuristics();
             }
             int auxId = ((id - 1) % numTasks) + 1;
-            if (id != 1 && auxId == 1) {
+            // if (id != 1 && auxId == 1) { //TODO: to avoid the deadline misses of first iteration
+            if (auxId == 1) {
                 secondRound = true;
             }
             id = auxId;
