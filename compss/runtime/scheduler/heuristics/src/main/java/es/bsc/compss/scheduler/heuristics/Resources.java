@@ -181,6 +181,37 @@ public class Resources {
     }
 
     /**
+     * Adds a new resource to the resource pool to be considered by the scheduler.
+     *
+     * @param name Name of the resource to add.
+     */
+    public int addResourceCloud(String cloudProvider, String name) {
+        this.m++;
+        int newM = this.m;
+        float[][] newIBW = new float[newM][newM];
+        for (int i = 0; i < newM; ++i) {
+            for (int j = 0; j < newM; ++j) {
+                if (i != j) {
+                    newIBW[i][j] = this.bw;
+                }
+            }
+        }
+        this.ibw = newIBW;
+
+        int pos = this.posByName.get(cloudProvider);
+        int i = 0;
+        for (String worker : this.originalWorkers) {
+            // System.out.println(worker);
+            if (worker.equals(cloudProvider)) {
+                // this.resourceNames.set(i, worker);
+                this.resourceNames.add(i, name);
+            }
+            ++i;
+        }
+        return pos;
+    }
+
+    /**
      * Sets the internal structure that represents the names of the workers to identify them.
      *
      * @param names Array containing the names.
@@ -191,6 +222,7 @@ public class Resources {
         for (String name : names) {
             int pos = this.posByName.size();
             this.posByName.put(name, pos);
+            System.out.println("HAHAHA " + name);
         }
     }
 

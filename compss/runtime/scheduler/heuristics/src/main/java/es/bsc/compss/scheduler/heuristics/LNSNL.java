@@ -51,6 +51,8 @@ public class LNSNL {
 
     private ArrayList<Boolean> dummies;
 
+    private ArrayList<Boolean> isCloud;
+
 
     public LNSNL(List<String> workers) {
         HeuristicsConfiguration.load();
@@ -178,9 +180,6 @@ public class LNSNL {
                 }
             }
 
-            this.resources = new Resources(ibw, mfs, h, overhead, m);
-            resources.setResourceNames(workers);
-
             HashMap<String, float[]> mapC = new HashMap<>();
             for (int j = 0; j < m; ++j) {
                 float[] times = new float[n];
@@ -190,7 +189,33 @@ public class LNSNL {
                 // mapC.put(workers.get(j), times);
                 mapC.put(workersOrder.get(j), times);
             }
-            this.dag = new DAG(mapC, z, succ, n);
+
+            lines = br.readLine();
+            st = lines.trim().split("\\s+"); // contains isCloud
+            this.isCloud = new ArrayList<>(m);
+            for (int j = 2; j < st.length - 1; j++) {
+                if (j == 2) {
+                    int pos = st[j].indexOf('[');
+                    isCloud.add(st[j].substring(pos + 1).charAt(0) == '1');
+                } else {
+                    isCloud.add(st[j].charAt(0) == '1');
+                }
+            }
+
+            // TODO: subtract m-- (Resources and LNSNL), remove one row and one column in ibw -> removeresources
+            this.resources = new Resources(ibw, mfs, h, overhead, m);
+            // resources.setResourceNames(workers); // TODO: check if workers received from sched or workersOrder
+            resources.setResourceNames(workersOrder); // TODO: check if workers received from sched or workersOrder
+            for (int j = 0; j < isCloud.size(); j++) {
+                if (isCloud.get(j)) {
+                    resources.removeResource(workersOrder.get(j));
+                    this.m--;
+                }
+            }
+
+            // TODO: origC in DAG contains all mapC but from C remove the ones belonging to the cloud,
+            // remove one row and one column in ibw
+            this.dag = new DAG(mapC, z, succ, n, isCloud, workersOrder);
         } catch (IOException | StringIndexOutOfBoundsException | ArrayIndexOutOfBoundsException
             | NullPointerException e) {
             ErrorManager.fatal("ERROR WHILE PARSING INPUT FILE. FILE FORMAT NOT CORRECT");
@@ -210,6 +235,12 @@ public class LNSNL {
     public void addResource(String name) {
         this.resources.addResource(name);
         this.dag.addResource(name);
+        this.m++;
+    }
+
+    public void addResourceCloud(String name, String cloudProvider) {
+        this.resources.addResourceCloud(cloudProvider, name);
+        this.dag.addResourceCloud(cloudProvider, name);
         this.m++;
     }
 
