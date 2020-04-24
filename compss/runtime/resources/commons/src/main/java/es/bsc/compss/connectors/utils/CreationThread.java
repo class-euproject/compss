@@ -114,7 +114,6 @@ public class CreationThread extends Thread {
 
         CloudMethodResourceDescription requested = rcr.getRequested();
         List<VM> granted;
-
         if (this.reused == null) { // If the resources does not exist --> Create
             this.setName("Creation Thread " + this.name);
             try {
@@ -145,7 +144,7 @@ public class CreationThread extends Thread {
         final CloudMethodWorker r = (CloudMethodWorker) ResourceManager.getDynamicResource(granted.get(0).getName());
         final AtomicInteger counter = new AtomicInteger();
         granted.forEach(g -> {
-            String grantedName = g.getName() + "-" + counter.getAndIncrement();
+            String grantedName = provider.getName() + "-" + counter.getAndIncrement();
             this.setName("Creation Thread " + grantedName);
             if (r == null) {
                 CloudMethodWorker cmw;
@@ -156,7 +155,7 @@ public class CreationThread extends Thread {
                         if (DEBUG) {
                             RUNTIME_LOGGER.debug(" Preparing new worker resource " + g.getName() + ".");
                         }
-                        cmw = prepareNewResource(g);
+                        cmw = prepareNewResource(grantedName, g);
                         operations.vmReady(g);
                     } catch (Exception e) {
                         RUNTIME_LOGGER.error(ERROR_PREPARING_VM, e);
@@ -175,6 +174,7 @@ public class CreationThread extends Thread {
                         RUNTIME_LOGGER.debug("Worker for new resource " + grantedName + " set.");
                     }
                 }
+                cmw.setId(g.getEnvId().toString());
                 g.setWorker(cmw);
                 ResourceManager.addCloudWorker(this.rcr, cmw, g.getDescription());
                 // ResourceManager.addDynamicWorker(cmw, g.getDescription());
@@ -267,7 +267,7 @@ public class CreationThread extends Thread {
         return granted;
     }
 
-    private CloudMethodWorker prepareNewResource(VM vm) throws ConnectorException {
+    private CloudMethodWorker prepareNewResource(String name, VM vm) throws ConnectorException {
         CloudMethodResourceDescription granted = vm.getDescription();
         CloudImageDescription cid = granted.getImage();
         Map<String, String> workerProperties = cid.getProperties();
@@ -294,8 +294,8 @@ public class CreationThread extends Thread {
         int limitOfTasks = Math.max(mc.getLimitOfTasks(), granted.getTotalCPUComputingUnits());
         COMPSsWorker compssWorker =
             Comm.getAdaptor(mc.getAdaptorName()).initWorker(mc, vm.getName(), vm.getDescription().getPort());
-        CloudMethodWorker worker = new CloudMethodWorker(granted.getName(), this.provider, granted, compssWorker,
-            limitOfTasks, granted.getTotalGPUComputingUnits(), granted.getTotalFPGAComputingUnits(),
+        CloudMethodWorker worker = new CloudMethodWorker(name, this.provider, granted, compssWorker, limitOfTasks,
+            granted.getTotalGPUComputingUnits(), granted.getTotalFPGAComputingUnits(),
             granted.getTotalOTHERComputingUnits(), cid.getSharedDisks());
 
         try {

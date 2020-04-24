@@ -79,6 +79,7 @@ import es.bsc.compss.types.resources.jaxb.ResourcesExternalAdaptorProperties;
 import es.bsc.compss.types.resources.jaxb.ResourcesPropertyAdaptorType;
 import es.bsc.compss.types.uri.MultiURI;
 import es.bsc.compss.util.ErrorManager;
+import es.bsc.compss.util.Tracer;
 import es.bsc.conn.types.StarterCommand;
 
 import java.io.File;
@@ -1065,6 +1066,10 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
     public StarterCommand getStarterCommand(String workerName, int workerPort, String masterName, String workingDir,
         String installDir, String appDir, String classpathFromFile, String pythonpathFromFile, String libPathFromFile,
         int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId, boolean container) {
+
+        if ((hostId == null || "null".equals(hostId) || "".equals(hostId)) && Tracer.extraeEnabled()) {
+            hostId = String.valueOf(NIOTracer.registerHost(workerName, 0));
+        }
 
         return new NIOStarterCommand(workerName, workerPort, masterName, workingDir, installDir, appDir,
             classpathFromFile, pythonpathFromFile, libPathFromFile, totalCPU, totalGPU, totalFPGA, limitOfTasks, hostId,

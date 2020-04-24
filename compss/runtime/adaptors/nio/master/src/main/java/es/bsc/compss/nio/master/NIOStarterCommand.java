@@ -71,8 +71,12 @@ public class NIOStarterCommand extends WorkerStarterCommand {
             if (this.appDir == null || "".equals(this.appDir) || "null".equals(this.appDir)) {
                 this.appDir = "/compss";
             }
+            if (this.workerPythonpath == null || "".equals(this.workerPythonpath)
+                || "null".equals(this.workerPythonpath)) {
+                this.workerPythonpath = "/compss";
+            }
             if ("python".equals(this.lang.toLowerCase())) {
-                this.workerPythonpath += LIB_SEPARATOR + appDir;
+                this.workerPythonpath += LIB_SEPARATOR + appDir + LIB_SEPARATOR + "/compss";
             } else if ("java".equals(this.lang.toLowerCase())) {
                 String[] paths = CLASSPATH_FROM_ENVIRONMENT.split(LIB_SEPARATOR);
                 String jarName = paths[1].split("/")[paths[1].split("/").length - 1];

@@ -22,15 +22,10 @@ import es.bsc.compss.connectors.conn.util.ConnectorProxy;
 import es.bsc.compss.connectors.conn.util.Converter;
 import es.bsc.compss.log.Loggers;
 import es.bsc.compss.types.CloudProvider;
-import es.bsc.compss.types.resources.configuration.MethodConfiguration;
-import es.bsc.compss.types.resources.description.CloudImageDescription;
 import es.bsc.compss.types.resources.description.CloudMethodResourceDescription;
 import es.bsc.compss.util.Classpath;
 
-import es.bsc.compss.util.Tracer;
 import es.bsc.conn.Connector;
-import es.bsc.conn.types.StarterCommand;
-import es.bsc.conn.types.VirtualResource;
 
 import java.io.File;
 import java.io.FileNotFoundException;

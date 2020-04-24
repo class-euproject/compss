@@ -27,6 +27,7 @@ import java.util.Map;
 public class MethodWorker extends Worker<MethodResourceDescription> {
 
     private String name;
+    private String id;
 
     // Available resource capabilities
     protected final MethodResourceDescription available;
@@ -177,6 +178,14 @@ public class MethodWorker extends Worker<MethodResourceDescription> {
         return ((this.usedCPUtaskCount < this.maxCPUtaskCount) || (this.usedGPUtaskCount < this.maxGPUtaskCount)
             || (this.usedFPGAtaskCount < this.maxFPGAtaskCount)
             || (this.usedOthersTaskCount < this.maxOthersTaskCount));
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
     }
 
     /**

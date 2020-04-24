@@ -29,6 +29,7 @@ import es.bsc.conn.types.SoftwareDescription;
 import es.bsc.conn.types.StarterCommand;
 import es.bsc.conn.types.VirtualResource;
 
+import java.io.File;
 import java.util.List;
 import java.util.Map;
 
@@ -88,12 +89,14 @@ public class ConnectorProxy {
         CommAdaptor adaptor = Comm.getAdaptor(adaptorName);
         if (adaptor != null) {
             String hostId = null; // Set by connector
-            return adaptor.getStarterCommand(name, minPort, Comm.getAppHost().getName(),
-                sd.getInstallation().getWorkingDir(), sd.getInstallation().getInstallDir(),
-                sd.getInstallation().getAppDir(), sd.getInstallation().getClasspath(),
-                sd.getInstallation().getPythonPath(), sd.getInstallation().getLibraryPath(),
-                hd.getTotalCPUComputingUnits(), hd.getTotalGPUComputingUnits(), hd.getTotalFPGAComputingUnits(),
-                sd.getInstallation().getLimitOfTasks(), hostId, container);
+            String workingDir = sd.getInstallation().getWorkingDir() + File.separator
+                + System.getProperty(COMPSsConstants.DEPLOYMENT_ID) + File.separator
+                + hd.getImageName().replaceAll("/", "_");
+            return adaptor.getStarterCommand(name, minPort, Comm.getAppHost().getName(), workingDir,
+                sd.getInstallation().getInstallDir(), sd.getInstallation().getAppDir(),
+                sd.getInstallation().getClasspath(), sd.getInstallation().getPythonPath(),
+                sd.getInstallation().getLibraryPath(), hd.getTotalCPUComputingUnits(), hd.getTotalGPUComputingUnits(),
+                hd.getTotalFPGAComputingUnits(), sd.getInstallation().getLimitOfTasks(), hostId, container);
         } else {
             return null;
         }

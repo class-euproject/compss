@@ -70,7 +70,11 @@ public class WorkerStarter extends Starter {
 
         // Try to launch the worker until we receive the PID or we timeout
         int pid = -1;
-        String[] command = generateStartCommand(port, masterName, "NoTracingHostID");
+        String tracingHostId = "NoTracingHostID";
+        if (Tracer.extraeEnabled()) {
+            tracingHostId = String.valueOf(NIOTracer.registerHost(this.nw.getName(), 0));
+        }
+        String[] command = generateStartCommand(port, masterName, tracingHostId);
         do {
             ProcessOut po = executeCommand(user, name, command);
             if (po == null) {

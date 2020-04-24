@@ -26,8 +26,6 @@ import es.bsc.compss.types.resources.description.CloudMethodResourceDescription;
 import es.bsc.compss.util.Classpath;
 
 import es.bsc.conn.Connector;
-import es.bsc.conn.types.StarterCommand;
-import es.bsc.conn.types.VirtualResource;
 
 import java.io.File;
 import java.io.FileNotFoundException;

@@ -26,6 +26,7 @@ import es.bsc.compss.scheduler.heuristics.Result;
 import es.bsc.compss.scheduler.types.ActionOrchestrator;
 import es.bsc.compss.scheduler.types.AllocatableAction;
 import es.bsc.compss.scheduler.types.Score;
+import es.bsc.compss.types.COMPSsWorker;
 import es.bsc.compss.types.Task;
 import es.bsc.compss.types.TaskDescription;
 import es.bsc.compss.types.TaskState;
@@ -34,6 +35,7 @@ import es.bsc.compss.types.allocatableactions.TransferValueAction;
 import es.bsc.compss.types.annotations.parameter.Direction;
 import es.bsc.compss.types.parameter.DependencyParameter;
 import es.bsc.compss.types.parameter.Parameter;
+import es.bsc.compss.types.resources.MethodWorker;
 import es.bsc.compss.types.resources.Worker;
 import es.bsc.compss.types.resources.WorkerResourceDescription;
 import es.bsc.compss.util.ErrorManager;
@@ -210,7 +212,10 @@ public class PrometheusScheduler extends TaskScheduler {
     public <T extends WorkerResourceDescription> PrometheusResourceScheduler<T>
         generateSchedulerForResource(Worker<T> w, JSONObject resJSON, JSONObject implJSON) {
         LOGGER.debug("[PrometheusScheduler] Generate scheduler for resource " + w.getName());
-        initializeCounter();
+        MethodWorker mw = (MethodWorker) w;
+        if (mw.getId() != null) {
+            initializeCounter(mw.getId());
+        }
         return new PrometheusResourceScheduler<>(w, resJSON, implJSON, this);
     }
 
@@ -263,10 +268,11 @@ public class PrometheusScheduler extends TaskScheduler {
         rub = res.getRub();
     }
 
-    private void initializeCounter() {
+    private void initializeCounter(String id) {
         if (this.deadlines == null) {
+            System.out.println("INITIALIZING METRICS WITH NAME deadlines_missed_" + id);
             this.deadlines =
-                Counter.build().name("deadlines_missed").help("Total deadlines missed per workflow").register();
+                Counter.build().name("deadlines_missed_" + id).help("Total deadlines missed per workflow").register();
 
             try {
                 setUpPrometheusConnection();

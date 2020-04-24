@@ -2,8 +2,10 @@ package es.bsc.compss.nio.master.starters;
 
 import es.bsc.comm.nio.NIONode;
 import es.bsc.compss.exceptions.InitNodeException;
+import es.bsc.compss.nio.NIOTracer;
 import es.bsc.compss.nio.master.NIOWorkerNode;
 import es.bsc.compss.nio.master.handlers.ProcessOut;
+import es.bsc.compss.util.Tracer;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -81,7 +83,11 @@ public class DockerStarter extends ContainerStarter {
 
     @Override
     protected NIONode distribute(String master, Integer minPort, Integer maxPort) throws InitNodeException {
-        final String[] command = generateStartCommand(43001, master, "NoTracingHostID");
+        String tracingHostId = "NoTracingHostID";
+        if (Tracer.extraeEnabled()) {
+            tracingHostId = String.valueOf(NIOTracer.registerHost(this.nw.getName(), 0));
+        }
+        final String[] command = generateStartCommand(43001, master, tracingHostId);
 
         // String containerId = this.imageToContainerName(this.imageName);
         List<String> cmd = new ArrayList<>();

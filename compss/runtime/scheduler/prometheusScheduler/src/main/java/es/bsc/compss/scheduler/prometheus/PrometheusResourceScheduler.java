@@ -30,7 +30,6 @@ import es.bsc.compss.types.implementations.Implementation;
 import es.bsc.compss.types.resources.Worker;
 import es.bsc.compss.types.resources.WorkerResourceDescription;
 
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -65,15 +64,8 @@ public class PrometheusResourceScheduler<T extends WorkerResourceDescription> ex
 
     @Override
     public PriorityQueue<AllocatableAction> getBlockedActions() {
-        PriorityQueue<AllocatableAction> blockedActions = new PriorityQueue<>(20, new Comparator<AllocatableAction>() {
-
-            @Override
-            public int compare(AllocatableAction a1, AllocatableAction a2) {
-                Score score1 = generateBlockedScore(a1);
-                Score score2 = generateBlockedScore(a2);
-                return score1.compareTo(score2);
-            }
-        });
+        PriorityQueue<AllocatableAction> blockedActions =
+            new PriorityQueue<>(20, (a1, a2) -> generateBlockedScore(a1).compareTo(generateBlockedScore(a2)));
 
         blockedActions.addAll(super.getBlockedActions());
         return blockedActions;

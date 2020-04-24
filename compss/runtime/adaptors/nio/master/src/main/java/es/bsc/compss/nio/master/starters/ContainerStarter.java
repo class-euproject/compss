@@ -140,7 +140,7 @@ public abstract class ContainerStarter extends Starter {
 
         NIONode n = this.distribute(masterName, minPort, maxPort);
         try {
-            Thread.sleep(1500);
+            Thread.sleep(2000);
         } catch (Exception e) {
         }
         // executeCommand(user, name, getStartCommand(port, masterName));
