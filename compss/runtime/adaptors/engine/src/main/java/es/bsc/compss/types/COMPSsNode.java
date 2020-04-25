@@ -69,6 +69,7 @@ public abstract class COMPSsNode implements Comparable<COMPSsNode> {
             && (!MASTER_NAME_PROPERTY.equals("null"))) {
             // Set the hostname from the defined property
             hostName = MASTER_NAME_PROPERTY;
+
         } else {
             // The MASTER_NAME_PROPERTY has not been defined, try load from machine
             try {

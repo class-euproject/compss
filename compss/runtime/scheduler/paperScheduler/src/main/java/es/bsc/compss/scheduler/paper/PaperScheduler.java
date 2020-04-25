@@ -199,6 +199,7 @@ public class PaperScheduler extends TaskScheduler {
             this.numTasks = lnsnl.getNumTasks();
             for (AbstractMap.SimpleEntry<String, String> worker : cloudWorkers) {
                 lnsnl.addResourceCloud(worker.getKey(), worker.getValue());
+                cloudWorkers.remove(worker);
             }
             Result res = lnsnl.schedule();
             updateInternalStructures(res);
@@ -209,11 +210,14 @@ public class PaperScheduler extends TaskScheduler {
         }
         // TODO: check if correct for considering new workers deployed after first worker present and refactor
 
-        /*
-         * if (!noWorkers && lnsnl != null) { System.out.println("HAHAAHAHAHAHAH I ENTER HEREE"); for
-         * (AbstractMap.SimpleEntry<String, String> worker : cloudWorkers) { lnsnl.addResourceCloud(worker.getKey(),
-         * worker.getValue()); } Result res = lnsnl.schedule(); updateInternalStructures(res); }
-         */
+        if (!noWorkers && lnsnl != null) {
+            LOGGER.debug("[PaperScheduler] Re-scheduled due to the appearance of new workers");
+            for (AbstractMap.SimpleEntry<String, String> worker : cloudWorkers) {
+                lnsnl.addResourceCloud(worker.getKey(), worker.getValue());
+            }
+            Result res = lnsnl.schedule();
+            updateInternalStructures(res);
+        }
     }
 
     private void updateInternalStructures(Result res) {
@@ -230,6 +234,14 @@ public class PaperScheduler extends TaskScheduler {
             this.opActions.put(name, opAction);
         }
         iters = res.getIters();
+
+        for (String worker : mapRes.keySet()) {
+            System.out.print("WORKER " + worker + ": ");
+            for (int task : mapRes.get(worker)) {
+                System.out.print(task + " ");
+            }
+            System.out.println();
+        }
     }
 
     @Override
