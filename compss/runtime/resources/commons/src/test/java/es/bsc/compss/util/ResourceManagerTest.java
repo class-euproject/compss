@@ -205,37 +205,27 @@ public class ResourceManagerTest {
         if (ResourceManager.useCloud()) {
             fail("ResourceManager has cloud enabled by default");
         }
-        ResourceManager.setCloudVMsBoundaries(3, 5, 8);
-        if (ResourceManager.getMinCloudVMs() != 3) {
-            fail("ResourceManager does not properly configure the cloud boundaries");
-        }
-        if (ResourceManager.getInitialCloudVMs() != 5) {
-            fail("ResourceManager does not properly configure the cloud boundaries");
-        }
-        if (ResourceManager.getMaxCloudVMs() != 8) {
-            fail("ResourceManager does not properly configure the cloud boundaries");
-        }
-        ResourceManager.setCloudVMsBoundaries(9, 5, 8);
-        if (ResourceManager.getMinCloudVMs() != 9) {
-            fail("ResourceManager does not properly configure the cloud boundaries");
-        }
-        if (ResourceManager.getInitialCloudVMs() != 9) {
-            fail("ResourceManager does not properly configure the cloud boundaries");
-        }
-        if (ResourceManager.getMaxCloudVMs() != 9) {
-            fail("ResourceManager does not properly configure the cloud boundaries");
-        }
-
-        ResourceManager.setCloudVMsBoundaries(3, null, null);
-        if (ResourceManager.getMinCloudVMs() != 3) {
-            fail("ResourceManager does not properly configure the cloud boundaries");
-        }
-        if (ResourceManager.getInitialCloudVMs() != 5) {
-            fail("ResourceManager does not properly configure the cloud boundaries");
-        }
-        if (ResourceManager.getMaxCloudVMs() != 8) {
-            fail("ResourceManager does not properly configure the cloud boundaries");
-        }
+        /*
+         * ResourceManager.setCloudVMsBoundaries(3, 5, 8); if (ResourceManager.getMinCloudVMs() != 3) {
+         * fail("ResourceManager does not properly configure the cloud boundaries"); } if
+         * (ResourceManager.getInitialCloudVMs() != 5) {
+         * fail("ResourceManager does not properly configure the cloud boundaries"); } if
+         * (ResourceManager.getMaxCloudVMs() != 8) {
+         * fail("ResourceManager does not properly configure the cloud boundaries"); }
+         * ResourceManager.setCloudVMsBoundaries(9, 5, 8); if (ResourceManager.getMinCloudVMs() != 9) {
+         * fail("ResourceManager does not properly configure the cloud boundaries"); } if
+         * (ResourceManager.getInitialCloudVMs() != 9) {
+         * fail("ResourceManager does not properly configure the cloud boundaries"); } if
+         * (ResourceManager.getMaxCloudVMs() != 9) {
+         * fail("ResourceManager does not properly configure the cloud boundaries"); }
+         * 
+         * ResourceManager.setCloudVMsBoundaries(3, null, null); if (ResourceManager.getMinCloudVMs() != 3) {
+         * fail("ResourceManager does not properly configure the cloud boundaries"); } if
+         * (ResourceManager.getInitialCloudVMs() != 5) {
+         * fail("ResourceManager does not properly configure the cloud boundaries"); } if
+         * (ResourceManager.getMaxCloudVMs() != 8) {
+         * fail("ResourceManager does not properly configure the cloud boundaries"); }
+         */
 
         CloudProvider cp1 = addProvider();
         if (ResourceManager.getAvailableCloudProviders().size() != 1
@@ -256,7 +246,7 @@ public class ResourceManagerTest {
 
     @Test
     public void testOneCloudWorkersOperations() {
-        ResourceManager.setCloudVMsBoundaries(3, 5, 8);
+        // ResourceManager.setCloudVMsBoundaries(3, 5, 8);
         CloudProvider cp1 = addProvider();
 
         CloudMethodResourceDescription cmrd1 = createResourceDescriptionFromProvider(cp1);
@@ -293,7 +283,7 @@ public class ResourceManagerTest {
 
     @Test
     public void testMultipleCloudWorkersOperations() {
-        ResourceManager.setCloudVMsBoundaries(3, 5, 8);
+        // ResourceManager.setCloudVMsBoundaries(3, 5, 8);
         CloudProvider cp1 = addProvider();
         CloudProvider cp2 = addProvider();
 
@@ -513,7 +503,7 @@ public class ResourceManagerTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = ResourceManager.registerCloudProvider(providerName, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = ResourceManager.registerCloudProvider(providerName, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
         }

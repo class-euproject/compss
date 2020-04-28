@@ -49,7 +49,6 @@ public class CloudProvider {
     private static final String WARN_CANNOT_TURN_ON = "WARN: Connector cannot turn on resource";
 
     private final String name;
-    private final Integer limitOfVMs;
 
     private final Set<CloudMethodWorker> hostedWorkers;
     private final CloudImageManager imgManager;
@@ -58,6 +57,8 @@ public class CloudProvider {
     private final Connector connector;
     private final Cost cost;
 
+    private Integer initialVRs;
+    private Integer maximumVRs;
     private int currentVMCount;
     private final List<ResourceCreationRequest> pendingRequests;
     private int[] pendingCoreCount;
@@ -70,18 +71,21 @@ public class CloudProvider {
      * Creates a new CloudProvider instance.
      * 
      * @param providerName Cloud Provider name.
-     * @param limitOfVMs Number of maximum VMs.
+     * @param initialVRs Initial amount of VRs.
+     * @param maximumVRs Number of maximum VMs.
      * @param runtimeConnectorClass Runtime connector fully qualified class name.
      * @param connectorJarPath Path to the external connector JAR.
      * @param connectorMainClass External connector fully qualified class name.
      * @param connectorProperties Specific connector properties.
      * @throws ConnectorException When an internal connector exception occurs.
      */
-    public CloudProvider(String providerName, Integer limitOfVMs, String runtimeConnectorClass, String connectorJarPath,
-        String connectorMainClass, Map<String, String> connectorProperties) throws ConnectorException {
+    public CloudProvider(String providerName, Integer initialVRs, Integer maximumVRs, String runtimeConnectorClass,
+        String connectorJarPath, String connectorMainClass, Map<String, String> connectorProperties)
+        throws ConnectorException {
 
         this.name = providerName;
-        this.limitOfVMs = limitOfVMs;
+        this.initialVRs = initialVRs;
+        this.maximumVRs = maximumVRs;
         this.currentVMCount = 0;
         this.hostedWorkers = new HashSet<>();
         this.imgManager = new CloudImageManager();
@@ -333,6 +337,24 @@ public class CloudProvider {
         return this.hostedWorkers;
     }
 
+    /**
+     * Returns the requested initial VR amount.
+     * 
+     * @return The initial VR amount.
+     */
+    public Integer getInitialVRs() {
+        return this.initialVRs;
+    }
+
+    /**
+     * Returns the requested maximum VR amount, if any.
+     * 
+     * @return
+     */
+    public Integer getMaximumVRs() {
+        return this.maximumVRs == null ? 0 : this.maximumVRs;
+    }
+
     /*
      * ------------- State Changes -------------
      */
@@ -370,7 +392,7 @@ public class CloudProvider {
         if (isRequestAccepted) {
             CloudMethodResourceDescription cmrd = rcr.getRequested();
             for (int[] typeCount : cmrd.getTypeComposition().values()) {
-                this.currentVMCount += typeCount[0];
+                this.currentVMCount += typeCount[0] * cmrd.getReplicas();
             }
             this.pendingRequests.add(rcr);
             for (int coreId = 0; coreId < simultaneousCounts.length; coreId++) {
@@ -501,13 +523,7 @@ public class CloudProvider {
      * @return {@literal true} if the Cloud Provider can host more instances, {@literal false} otherwise.
      */
     public boolean canHostMoreInstances() {
-        if (this.limitOfVMs == null) {
-            return true;
-        }
-        if (this.limitOfVMs == -1) {
-            return true;
-        }
-        return this.currentVMCount < this.limitOfVMs;
+        return this.maximumVRs != null && this.maximumVRs != -1 && this.currentVMCount < this.maximumVRs;
     }
 
     /**
@@ -549,7 +565,8 @@ public class CloudProvider {
         sb.append(prefix).append("PROVIDER = [").append("\n");
         sb.append(prefix).append("\t").append("NAME = ").append(this.name).append("\n");
         sb.append(prefix).append("\t").append("CURRENT_VM = ").append(this.currentVMCount).append("\n");
-        sb.append(prefix).append("\t").append("LIMIT_VM = ").append(this.limitOfVMs).append("\n");
+        sb.append(prefix).append("\t").append("INITIAL_VR = ").append(this.initialVRs).append("\n");
+        sb.append(prefix).append("\t").append("MAXIMUM_VR = ").append(this.maximumVRs).append("\n");
         sb.append(this.imgManager.getCurrentState(prefix + "\t"));
         sb.append(this.typeManager.getCurrentState(prefix + "\t"));
 

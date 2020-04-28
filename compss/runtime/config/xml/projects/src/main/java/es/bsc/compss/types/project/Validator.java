@@ -380,62 +380,18 @@ public class Validator {
     @SuppressWarnings("unchecked")
     public void validateCloud(CloudType c) throws InvalidElementException {
         if (c != null) {
-            List<JAXBElement<?>> innerElements = c.getCloudProviderOrInitialVMsOrMinimumVMs();
+            List<CloudProviderType> innerElements = c.getCloudProvider();
             if (innerElements != null) {
                 boolean cpTagFound = false;
-                boolean initialVMsTagFound = false;
-                boolean minVMsTagFound = false;
-                boolean maxVMsTagFound = false;
-                JAXBElement<Integer> initialVMs = null;
-                int minVMs = -1;
-                int maxVMs = -1;
-                for (JAXBElement<?> element : innerElements) {
-                    if (element.getName().equals(new QName("CloudProvider"))) {
-                        cpTagFound = true;
-                        validateCloudProvider(((CloudProviderType) element.getValue()));
-                    } else if (element.getName().equals(new QName("InitialVMs"))) {
-                        if (initialVMsTagFound) {
-                            // Second occurency, throw exception
-                            throw new InvalidElementException("Cloud", "Attribute " + element.getName(),
-                                "Appears more than once");
-                        } else {
-                            initialVMsTagFound = true;
-                            initialVMs = (JAXBElement<Integer>) element;
-                            validateInitialVMs(((Integer) element.getValue()));
-                        }
-                    } else if (element.getName().equals(new QName("MinimumVMs"))) {
-                        if (minVMsTagFound) {
-                            // Second occurency, throw exception
-                            throw new InvalidElementException("Cloud", "Attribute " + element.getName(),
-                                "Appears more than once");
-                        } else {
-                            minVMsTagFound = true;
-                            minVMs = ((Integer) element.getValue());
-                            validateMinimumVMs(((Integer) element.getValue()));
-                        }
-                    } else if (element.getName().equals(new QName("MaximumVMs"))) {
-                        if (maxVMsTagFound) {
-                            // Second occurency, throw exception
-                            throw new InvalidElementException("Cloud", "Attribute " + element.getName(),
-                                "Appears more than once");
-                        } else {
-                            maxVMsTagFound = true;
-                            maxVMs = ((Integer) element.getValue());
-                            validateMaximumVMs(((Integer) element.getValue()));
-                        }
-                    } else {
-                        throw new InvalidElementException("Cloud", "Attribute " + element.getName(),
-                            "Incorrect attribute");
-                    }
+                for (CloudProviderType element : innerElements) {
+                    cpTagFound = true;
+                    validateCloudProvider(element);
                 }
 
                 // Check mandatory fields have appeared
                 if (!cpTagFound) {
                     throw new InvalidElementException("Cloud", "Attribute CloudProvider", "Doesn't appear");
                 }
-
-                // Check coherence of initial, minimum and maximum VMs
-                checkInitialMinMaxVMsCoherence(initialVMs, minVMs, maxVMs);
             } else {
                 // The Cloud has no inner elements (and it has mandatory fields)
                 throw new InvalidElementException("Project", "Attribute Cloud", "has no inner fields");
@@ -455,48 +411,59 @@ public class Validator {
     public void validateCloudProvider(CloudProviderType cp) throws InvalidElementException {
         if (cp != null) {
             // Check innerElements
-            List<Object> innerElements = cp.getImagesOrInstanceTypesOrLimitOfVMs();
+            List<JAXBElement<?>> innerElements = cp.getImagesOrInstanceTypesOrInitialVRs();
             if (innerElements != null) {
                 boolean imagesTagFound = false;
                 boolean instancesTagFound = false;
-                boolean lovTagFound = false;
                 boolean propertiesTagFound = false;
-                for (Object obj : innerElements) {
-                    if (obj instanceof ImagesType) {
+                boolean initialVRsFound = false;
+                boolean maximumVRsFound = false;
+                Integer initialVRs = -1;
+                Integer maximumVRs = -1;
+                for (JAXBElement<?> obj : innerElements) {
+                    // obj.getName().equals(new QName("Images"))
+                    if (obj.getName().equals(new QName("Images"))) {
                         if (imagesTagFound) {
                             // Second occurency, throw exception
                             throw new InvalidElementException("CloudProvider", "Attribute " + obj.getClass(),
                                 "Appears more than once");
                         } else {
                             imagesTagFound = true;
-                            validateImages((ImagesType) obj);
+                            validateImages((ImagesType) obj.getValue());
                         }
-                    } else if (obj instanceof InstanceTypesType) {
+                    } else if (obj.getName().equals(new QName("InstanceTypes"))) {
                         if (instancesTagFound) {
                             // Second occurency, throw exception
                             throw new InvalidElementException("CloudProvider", "Attribute " + obj.getClass(),
                                 "Appears more than once");
                         } else {
                             instancesTagFound = true;
-                            validateInstanceTypes((InstanceTypesType) obj);
+                            validateInstanceTypes((InstanceTypesType) obj.getValue());
                         }
-                    } else if (obj instanceof Integer) { // LimitOfVMs
-                        if (lovTagFound) {
-                            // Second occurency, throw exception
-                            throw new InvalidElementException("CloudProvider", "Attribute " + obj.getClass(),
-                                "Appears more than once");
-                        } else {
-                            lovTagFound = true;
-                            validateLimitOfVMs((Integer) obj);
-                        }
-                    } else if (obj instanceof CloudPropertiesType) {
+                    } else if (obj.getName().equals(new QName("Properties"))) {
                         if (propertiesTagFound) {
                             // Second occurency, throw exception
                             throw new InvalidElementException("CloudProvider", "Attribute " + obj.getClass(),
                                 "Appears more than once");
                         } else {
                             propertiesTagFound = true;
-                            validateCloudProperties((CloudPropertiesType) obj);
+                            validateCloudProperties((CloudPropertiesType) obj.getValue());
+                        }
+                    } else if (obj.getName().equals(new QName("InitialVRs"))) {
+                        if (initialVRsFound) {
+                            throw new InvalidElementException("CloudProvider", "Attribute " + obj.getClass(),
+                                "Appears more than once");
+                        } else {
+                            initialVRsFound = true;
+                            initialVRs = (Integer) obj.getValue();
+                        }
+                    } else if (obj.getName().equals(new QName("MaximumVRs"))) {
+                        if (maximumVRsFound) {
+                            throw new InvalidElementException("CloudProvider", "Attribute " + obj.getClass(),
+                                "Appears more than once");
+                        } else {
+                            maximumVRsFound = true;
+                            maximumVRs = (Integer) obj.getValue();
                         }
                     } else {
                         throw new InvalidElementException("CloudProvider", "Attribute " + obj.getClass(),
@@ -510,6 +477,10 @@ public class Validator {
                 }
                 if (!instancesTagFound) {
                     throw new InvalidElementException("CloudProvider", "Attribute Instances", "Doesn't appear");
+                }
+                if (initialVRsFound && maximumVRsFound && initialVRs > maximumVRs) {
+                    throw new InvalidElementException("CloudProvider", "Attributes InitialVRs and MaximumVRs",
+                        "InitialVRs should not be larger than MaximumVRs");
                 }
             } else {
                 // The CloudProvider has no inner elements (and it has mandatory fields)
@@ -768,61 +739,6 @@ public class Validator {
         } else {
             // LimitOfTasks is always optional
             // Nothing to do
-        }
-    }
-
-    private void validateInitialVMs(Integer initialVMs) throws InvalidElementException {
-        if (initialVMs == null) {
-            throw new InvalidElementException("Cloud", "Attribute initialVMs", "Is null");
-        }
-        if (((int) initialVMs) < 0) {
-            throw new InvalidElementException("ComputeNode", "Attribute initialVMs", "has an invalid value");
-        }
-    }
-
-    private void validateMinimumVMs(Integer minimumVMs) throws InvalidElementException {
-        if (minimumVMs == null) {
-            throw new InvalidElementException("Cloud", "Attribute minimumVMs", "Is null");
-        }
-        if (((int) minimumVMs) < 0) {
-            throw new InvalidElementException("ComputeNode", "Attribute minimumVMs", "has an invalid value");
-        }
-    }
-
-    private void validateMaximumVMs(Integer maximumVMs) throws InvalidElementException {
-        if (maximumVMs == null) {
-            throw new InvalidElementException("Cloud", "Attribute maximumVMs", "Is null");
-        }
-        if (((int) maximumVMs) < 0) {
-            throw new InvalidElementException("ComputeNode", "Attribute maximumVMs", "has an invalid value");
-        }
-    }
-
-    private void checkInitialMinMaxVMsCoherence(JAXBElement<Integer> initialVMs, int minVMs, int maxVMs)
-        throws InvalidElementException {
-        // Get real values
-        int initial = -1;
-        if (initialVMs != null) {
-            initial = initialVMs.getValue();
-        }
-
-        // Check
-        if (minVMs >= 0 && maxVMs >= 0 && minVMs > maxVMs) {
-            throw new InvalidElementException("Project", "Attributes minVMs/maxVMs", "define empty range");
-        }
-
-        if (minVMs >= 0 && initial >= 0 && initial < minVMs) {
-            // Inconsistent but error can be recovered. Raise warning
-            initialVMs.setValue(((Integer) minVMs));
-            logger.warn("InitialVMs value was " + initial + " but it is set to " + minVMs
-                + " because it is the minimumVMs value");
-        }
-
-        if (maxVMs >= 0 && initial >= 0 && initial > maxVMs) {
-            // Inconsistent but error can be recovered. Raise warning
-            initialVMs.setValue(((Integer) maxVMs));
-            logger.warn("InitialVMs value was " + initial + " but it is set to " + maxVMs
-                + " because it is the maximumVMs value");
         }
     }
 

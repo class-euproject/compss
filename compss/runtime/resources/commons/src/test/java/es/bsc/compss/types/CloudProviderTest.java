@@ -66,7 +66,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -82,7 +82,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -118,7 +118,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -201,7 +201,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -237,7 +237,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -312,7 +312,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -376,7 +376,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -429,7 +429,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -491,7 +491,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -551,7 +551,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -598,7 +598,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -675,7 +675,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -742,7 +742,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -790,7 +790,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;
@@ -858,7 +858,7 @@ public class CloudProviderTest {
         Map<String, String> properties = new HashMap<>();
         CloudProvider cp = null;
         try {
-            cp = new CloudProvider(PROVIDER_NAME, 0, RUNTIME_CONNECTOR, null, null, properties);
+            cp = new CloudProvider(PROVIDER_NAME, 0, 0, RUNTIME_CONNECTOR, null, null, properties);
         } catch (Exception e) {
             fail("Could not create the Cloud Provider");
             return;

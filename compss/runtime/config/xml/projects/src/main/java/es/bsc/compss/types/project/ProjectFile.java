@@ -422,13 +422,9 @@ public class ProjectFile {
             for (Object obj : objList) {
                 if (obj instanceof CloudType) {
                     CloudType cloud = (CloudType) obj;
-                    List<JAXBElement<?>> cloudPropsList = cloud.getCloudProviderOrInitialVMsOrMinimumVMs();
+                    List<CloudProviderType> cloudPropsList = cloud.getCloudProvider();
                     if (cloudPropsList != null) {
-                        for (JAXBElement<?> jaxbelem : cloudPropsList) {
-                            if (jaxbelem.getName().equals(new QName("CloudProvider"))) {
-                                list.add((CloudProviderType) jaxbelem.getValue());
-                            }
-                        }
+                        list.addAll(cloudPropsList);
                     }
                 }
             }
@@ -769,13 +765,10 @@ public class ProjectFile {
             for (Object obj : objList) {
                 if (obj instanceof CloudType) {
                     CloudType cloud = (CloudType) obj;
-                    List<JAXBElement<?>> cloudPropsList = cloud.getCloudProviderOrInitialVMsOrMinimumVMs();
+                    List<CloudProviderType> cloudPropsList = cloud.getCloudProvider();
                     if (cloudPropsList != null) {
-                        for (JAXBElement<?> jaxbelem : cloudPropsList) {
-                            if (jaxbelem.getName().equals(new QName("CloudProvider"))) {
-                                String providerName = ((CloudProviderType) jaxbelem.getValue()).getName();
-                                res.put(providerName, ((CloudProviderType) jaxbelem.getValue()));
-                            }
+                        for (CloudProviderType cloudProviderType : cloudPropsList) {
+                            res.put(cloudProviderType.getName(), cloudProviderType);
                         }
                     }
                 }
@@ -856,14 +849,9 @@ public class ProjectFile {
             for (Object obj : objList) {
                 if (obj instanceof CloudType) {
                     CloudType cloud = (CloudType) obj;
-                    List<JAXBElement<?>> cloudPropsList = cloud.getCloudProviderOrInitialVMsOrMinimumVMs();
+                    List<CloudProviderType> cloudPropsList = cloud.getCloudProvider();
                     if (cloudPropsList != null) {
-                        for (JAXBElement<?> jaxbelem : cloudPropsList) {
-                            if (jaxbelem.getName().equals(new QName("CloudProvider"))) {
-                                String providerName = ((CloudProviderType) jaxbelem.getValue()).getName();
-                                list.add(providerName);
-                            }
-                        }
+                        cloudPropsList.forEach(c -> list.add(c.getName()));
                     }
                 }
             }
@@ -1343,14 +1331,11 @@ public class ProjectFile {
             for (Object obj : objList) {
                 if (obj instanceof CloudType) {
                     CloudType cloud = (CloudType) obj;
-                    List<JAXBElement<?>> cloudPropsList = cloud.getCloudProviderOrInitialVMsOrMinimumVMs();
+                    List<CloudProviderType> cloudPropsList = cloud.getCloudProvider();
                     if (cloudPropsList != null) {
-                        for (JAXBElement<?> jaxbelem : cloudPropsList) {
-                            if (jaxbelem.getName().equals(new QName("CloudProvider"))) {
-                                CloudProviderType cp = (CloudProviderType) jaxbelem.getValue();
-                                if (cp.getName().equals(name)) {
-                                    return cp;
-                                }
+                        for (CloudProviderType cp : cloudPropsList) {
+                            if (name.equals(cp.getName())) {
+                                return cp;
                             }
                         }
                     }
@@ -1359,63 +1344,6 @@ public class ProjectFile {
         }
 
         // Not found
-        return null;
-    }
-
-    /**
-     * Returns the initial number of VMs declared on a given cloud description @c.
-     *
-     * @param c Cloud Description Object.
-     * @return Initial number of VMs. Null if not defined.
-     */
-    public Integer getInitialVMs(CloudType c) {
-        List<JAXBElement<?>> elements = c.getCloudProviderOrInitialVMsOrMinimumVMs();
-        if (elements != null) {
-            for (JAXBElement<?> elem : elements) {
-                if (elem.getName().equals(new QName("InitialVMs"))) {
-                    return (Integer) elem.getValue();
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Returns the minimum number of VMs declared on a given cloud description @c.
-     *
-     * @param c Cloud Description Object.
-     * @return Minimum number of VMs. Null if not defined.
-     */
-    public Integer getMinVMs(CloudType c) {
-        List<JAXBElement<?>> elements = c.getCloudProviderOrInitialVMsOrMinimumVMs();
-        if (elements != null) {
-            for (JAXBElement<?> elem : elements) {
-                if (elem.getName().equals(new QName("MinimumVMs"))) {
-                    return (Integer) elem.getValue();
-                }
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Returns the maximum number of VMs declared on a given cloud description @c.
-     *
-     * @param c Cloud Description Object
-     * @return Maximum number of VMs. Null if not defined.
-     */
-    public Integer getMaxVMs(CloudType c) {
-        List<JAXBElement<?>> elements = c.getCloudProviderOrInitialVMsOrMinimumVMs();
-        if (elements != null) {
-            for (JAXBElement<?> elem : elements) {
-                if (elem.getName().equals(new QName("MaximumVMs"))) {
-                    return (Integer) elem.getValue();
-                }
-            }
-        }
-
         return null;
     }
 
@@ -1759,52 +1687,7 @@ public class ProjectFile {
 
         // Mandatory elements
         if (cps != null) {
-            for (CloudProviderType cp : cps) {
-                JAXBElement<CloudProviderType> cpJaxb =
-                    new JAXBElement<CloudProviderType>(new QName("CloudProvider"), CloudProviderType.class, cp);
-                c.getCloudProviderOrInitialVMsOrMinimumVMs().add(cpJaxb);
-            }
-        }
-
-        return addCloud(c);
-    }
-
-    /**
-     * Adds a new Cloud with the given information.
-     *
-     * @param cps List of Cloud provider descriptions
-     * @param initialVMs Number of initial VMs
-     * @param minVMs Minimum number of VMs
-     * @param maxVMs Maximum number of VMs
-     * @return Instance of the added cloud description object.
-     * @throws InvalidElementException Error validating input data.
-     */
-    public CloudType addCloud(List<CloudProviderType> cps, int initialVMs, int minVMs, int maxVMs)
-        throws InvalidElementException {
-        CloudType c = new CloudType();
-
-        // Mandatory elements
-        if (cps != null) {
-            for (CloudProviderType cp : cps) {
-                JAXBElement<CloudProviderType> cpJaxb =
-                    new JAXBElement<CloudProviderType>(new QName("CloudProvider"), CloudProviderType.class, cp);
-                c.getCloudProviderOrInitialVMsOrMinimumVMs().add(cpJaxb);
-            }
-        }
-
-        // Optional parameters
-        if (initialVMs >= 0) {
-            JAXBElement<Integer> initialVMsJaxb =
-                new JAXBElement<Integer>(new QName("InitialVMs"), Integer.class, initialVMs);
-            c.getCloudProviderOrInitialVMsOrMinimumVMs().add(initialVMsJaxb);
-        }
-        if (minVMs >= 0) {
-            JAXBElement<Integer> minVMsJaxb = new JAXBElement<Integer>(new QName("MinimumVMs"), Integer.class, minVMs);
-            c.getCloudProviderOrInitialVMsOrMinimumVMs().add(minVMsJaxb);
-        }
-        if (maxVMs >= 0) {
-            JAXBElement<Integer> maxVMsJaxb = new JAXBElement<Integer>(new QName("MaximumVMs"), Integer.class, maxVMs);
-            c.getCloudProviderOrInitialVMsOrMinimumVMs().add(maxVMsJaxb);
+            c.getCloudProvider().addAll(cps);
         }
 
         return addCloud(c);
@@ -1826,9 +1709,7 @@ public class ProjectFile {
             if (obj instanceof CloudType) {
                 cloudTagFound = true;
                 CloudType c = (CloudType) obj;
-                JAXBElement<CloudProviderType> cpJaxb =
-                    new JAXBElement<CloudProviderType>(new QName("CloudProvider"), CloudProviderType.class, cp);
-                c.getCloudProviderOrInitialVMsOrMinimumVMs().add(cpJaxb);
+                c.getCloudProvider().add(cp);
             }
         }
 
@@ -1837,9 +1718,7 @@ public class ProjectFile {
             CloudType c = new CloudType();
             this.project.getMasterNodeOrComputeNodeOrDataNode().add(c);
             // Add the requested provider
-            JAXBElement<CloudProviderType> cpJaxb =
-                new JAXBElement<CloudProviderType>(new QName("CloudProvider"), CloudProviderType.class, cp);
-            c.getCloudProviderOrInitialVMsOrMinimumVMs().add(cpJaxb);
+            c.getCloudProvider().add(cp);
 
         }
         return cp;
@@ -2025,15 +1904,17 @@ public class ProjectFile {
 
         // Mandatory elements
         cp.setName(name);
-        cp.getImagesOrInstanceTypesOrLimitOfVMs().add(images);
-        cp.getImagesOrInstanceTypesOrLimitOfVMs().add(instances);
+        JAXBElement<ImagesType> imagesJaxb = new JAXBElement<>(new QName("Images"), ImagesType.class, images);
+        cp.getImagesOrInstanceTypesOrInitialVRs().add(imagesJaxb);
+        JAXBElement<InstanceTypesType> instancesJaxb =
+            new JAXBElement<>(new QName("InstanceTypes"), InstanceTypesType.class, instances);
+        cp.getImagesOrInstanceTypesOrInitialVRs().add(instancesJaxb);
 
         // Optional elements
-        if (limitOfVMs >= 0) {
-            cp.getImagesOrInstanceTypesOrLimitOfVMs().add(limitOfVMs);
-        }
         if (properties != null) {
-            cp.getImagesOrInstanceTypesOrLimitOfVMs().add(properties);
+            JAXBElement<CloudPropertiesType> propertiesJaxb =
+                new JAXBElement<>(new QName("InstanceTypes"), CloudPropertiesType.class, properties);
+            cp.getImagesOrInstanceTypesOrInitialVRs().add(propertiesJaxb);
         }
 
         return addCloudProvider(cp);
@@ -2065,22 +1946,6 @@ public class ProjectFile {
         if (cloud == null) {
             // NO cloud tag created, properties cannot be changed
             return false;
-        } else {
-            if (initialVMs >= 0) {
-                JAXBElement<Integer> initialVMsJaxb =
-                    new JAXBElement<Integer>(new QName("InitialVMs"), Integer.class, initialVMs);
-                cloud.getCloudProviderOrInitialVMsOrMinimumVMs().add(initialVMsJaxb);
-            }
-            if (minVMs >= 0) {
-                JAXBElement<Integer> minVMsJaxb =
-                    new JAXBElement<Integer>(new QName("MinimumVMs"), Integer.class, minVMs);
-                cloud.getCloudProviderOrInitialVMsOrMinimumVMs().add(minVMsJaxb);
-            }
-            if (maxVMs >= 0) {
-                JAXBElement<Integer> maxVMsJaxb =
-                    new JAXBElement<Integer>(new QName("MaximumVMs"), Integer.class, maxVMs);
-                cloud.getCloudProviderOrInitialVMsOrMinimumVMs().add(maxVMsJaxb);
-            }
         }
 
         return true;
@@ -2100,7 +1965,7 @@ public class ProjectFile {
 
         // Add image
         if (cp != null) {
-            List<Object> objList = cp.getImagesOrInstanceTypesOrLimitOfVMs();
+            List<JAXBElement<?>> objList = cp.getImagesOrInstanceTypesOrInitialVRs();
             if (objList != null) {
                 for (Object obj : objList) {
                     if (obj instanceof ImagesType) {
@@ -2112,7 +1977,9 @@ public class ProjectFile {
                 // No ImagesType tag found, create it and add
                 ImagesType images = new ImagesType();
                 images.getImage().add(image);
-                objList.add(images);
+                JAXBElement<ImagesType> imagesJaxb =
+                    new JAXBElement<>(new QName("InstanceTypes"), ImagesType.class, images);
+                objList.add(imagesJaxb);
                 return true;
             }
             return false;
@@ -2134,7 +2001,7 @@ public class ProjectFile {
 
         // Add image
         if (cp != null) {
-            List<Object> objList = cp.getImagesOrInstanceTypesOrLimitOfVMs();
+            List<JAXBElement<?>> objList = cp.getImagesOrInstanceTypesOrInitialVRs();
             if (objList != null) {
                 for (Object obj : objList) {
                     if (obj instanceof InstanceTypesType) {
@@ -2146,13 +2013,13 @@ public class ProjectFile {
                 // No InstanceTypes tag found, create it and add
                 InstanceTypesType instances = new InstanceTypesType();
                 instances.getInstanceType().add(instance);
-                objList.add(instances);
+                JAXBElement<InstanceTypesType> instancesJaxb =
+                    new JAXBElement<>(new QName("InstanceTypes"), InstanceTypesType.class, instances);
+                objList.add(instancesJaxb);
                 return true;
             }
-            return false;
-        } else {
-            return false;
         }
+        return false;
     }
 
     /**
@@ -2675,16 +2542,13 @@ public class ProjectFile {
             for (Object obj : objList) {
                 if (obj instanceof CloudType) {
                     CloudType cloud = (CloudType) obj;
-                    List<JAXBElement<?>> cloudPropsList = cloud.getCloudProviderOrInitialVMsOrMinimumVMs();
+                    List<CloudProviderType> cloudPropsList = cloud.getCloudProvider();
                     if (cloudPropsList != null) {
                         for (int i = 0; i < cloudPropsList.size(); ++i) {
-                            JAXBElement<?> jaxbelem = cloudPropsList.get(i);
-                            if (jaxbelem.getName().equals(new QName("CloudProvider"))) {
-                                CloudProviderType cp = (CloudProviderType) jaxbelem.getValue();
-                                if (cp.getName().equals(name)) {
-                                    cloudPropsList.remove(i);
-                                    return true;
-                                }
+                            CloudProviderType cp = cloudPropsList.get(i);
+                            if (cp.getName().equals(name)) {
+                                cloudPropsList.remove(i);
+                                return true;
                             }
                         }
                     }

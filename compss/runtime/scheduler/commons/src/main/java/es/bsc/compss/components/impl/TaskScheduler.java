@@ -45,6 +45,7 @@ import es.bsc.compss.types.resources.updates.PerformedReduction;
 import es.bsc.compss.types.resources.updates.ResourceUpdate;
 import es.bsc.compss.util.ActionSet;
 import es.bsc.compss.util.CoreManager;
+import es.bsc.compss.util.CustomResourceOptimizer;
 import es.bsc.compss.util.ErrorManager;
 import es.bsc.compss.util.ExternalAdaptationManager;
 import es.bsc.compss.util.JSONStateManager;
@@ -193,7 +194,8 @@ public class TaskScheduler {
      * @return new instance of the specific Resource Optimizer for the Task Scheduler.
      */
     public ResourceOptimizer generateResourceOptimizer() {
-        return new ResourceOptimizer(this);
+        // return new ResourceOptimizer(this);
+        return new CustomResourceOptimizer(this);
     }
 
     /**
