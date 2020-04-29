@@ -16,6 +16,7 @@
  */
 package es.bsc.compss.types;
 
+import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.connectors.Connector;
 import es.bsc.compss.connectors.ConnectorException;
 import es.bsc.compss.connectors.Cost;
@@ -25,10 +26,13 @@ import es.bsc.compss.types.resources.MethodResourceDescription;
 import es.bsc.compss.types.resources.description.CloudImageDescription;
 import es.bsc.compss.types.resources.description.CloudInstanceTypeDescription;
 import es.bsc.compss.types.resources.description.CloudMethodResourceDescription;
+import es.bsc.compss.util.Classpath;
 import es.bsc.compss.util.CloudImageManager;
 import es.bsc.compss.util.CloudTypeManager;
 import es.bsc.compss.util.CoreManager;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.lang.reflect.Constructor;
 import java.util.Collection;
 import java.util.HashSet;
@@ -47,6 +51,11 @@ public class CloudProvider {
     private static final String WARN_NO_VALID_INSTANCE = "WARN: Cannot find a containing/contained instanceType";
     private static final String WARN_NO_VALID_IMAGE = "WARN: Cannot find a containing/contained instanceType";
     private static final String WARN_CANNOT_TURN_ON = "WARN: Connector cannot turn on resource";
+
+    private static final String CONNECTORS_REL_PATH =
+        File.separator + "Runtime" + File.separator + "cloud-conn" + File.separator;
+    private static final String WARN_NO_COMPSS_HOME = "WARN: COMPSS_HOME not defined, no default connectors loaded";
+    private static final String DEFAULT_COMPSS_HOME = "/opt/COMPSs";
 
     private final String name;
 
@@ -91,6 +100,38 @@ public class CloudProvider {
         this.imgManager = new CloudImageManager();
         this.typeManager = new CloudTypeManager();
 
+        // If runtime connector was not specified with flag --conn, try to load the default connector
+        if (runtimeConnectorClass == null) {
+            try {
+                // Check if its relative to CONNECTORS or absolute to system
+                String jarPath = connectorJarPath;
+                if (!connectorJarPath.startsWith(File.separator)) {
+                    String compssHome = System.getenv(COMPSsConstants.COMPSS_HOME);
+                    if (compssHome == null || compssHome.isEmpty()) {
+                        LOGGER.warn(WARN_NO_COMPSS_HOME);
+                        compssHome = DEFAULT_COMPSS_HOME;
+                    }
+                    jarPath = compssHome + CONNECTORS_REL_PATH + connectorJarPath;
+                }
+
+                // Load jar to classpath
+                LOGGER.debug(" - Loading from : " + jarPath);
+                Classpath.loadPath(jarPath, LOGGER);
+
+                Class providerClass = Class.forName(connectorMainClass);
+                runtimeConnectorClass = ((es.bsc.conn.Connector.RuntimeConnector) providerClass
+                    .getMethod("getRuntimeConnector").invoke(null)).getCanonicalName();
+                if (runtimeConnectorClass == null) {
+                    throw new Exception();
+                }
+            } catch (FileNotFoundException fnfe) {
+                LOGGER.error("Specific connector jar file not found", fnfe);
+                throw new ConnectorException("Specific Connector jar file (" + connectorJarPath + ") not found", fnfe);
+            } catch (Exception e) {
+                throw new ConnectorException("No connector was specified, and the loading of the default connector for "
+                    + "cloud provider " + providerName + " (" + connectorMainClass + ") failed.", e);
+            }
+        }
         // Load Runtime connector implementation that will finally load the
         // infrastructure dependent connector
         try {
@@ -100,9 +141,9 @@ public class CloudProvider {
                 String.class,
                 Map.class };
             Constructor<?> ctor = conClass.getConstructor(parameterTypes);
-            Object conector = ctor.newInstance(this, connectorJarPath, connectorMainClass, connectorProperties);
-            this.connector = (Connector) conector;
-            this.cost = (Cost) conector;
+            Object connector = ctor.newInstance(this, connectorJarPath, connectorMainClass, connectorProperties);
+            this.connector = (Connector) connector;
+            this.cost = (Cost) connector;
         } catch (Exception e) {
             throw new ConnectorException(e);
         }

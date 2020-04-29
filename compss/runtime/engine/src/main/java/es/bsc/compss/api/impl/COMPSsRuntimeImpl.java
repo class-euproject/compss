@@ -249,13 +249,11 @@ public class COMPSsRuntimeImpl implements COMPSsRuntime, LoaderAPI, FatalErrorHa
                         System.setProperty(COMPSsConstants.COMM_ADAPTOR, COMPSsConstants.DEFAULT_ADAPTOR);
                     }
                 }
-                if (System.getProperty(COMPSsConstants.CONN) == null) {
-                    if (manager.getConn() != null) {
-                        System.setProperty(COMPSsConstants.CONN, manager.getConn());
-                    } else {
-                        System.setProperty(COMPSsConstants.CONN, COMPSsConstants.DEFAULT_CONNECTOR);
-                    }
-                }
+                /*
+                 * if (System.getProperty(COMPSsConstants.CONN) == null) { if (manager.getConn() != null) {
+                 * System.setProperty(COMPSsConstants.CONN, manager.getConn()); } else {
+                 * System.setProperty(COMPSsConstants.CONN, COMPSsConstants.DEFAULT_CONNECTOR); } }
+                 */
                 if (System.getProperty(COMPSsConstants.GAT_DEBUG) == null) {
                     System.setProperty(COMPSsConstants.GAT_DEBUG, Boolean.toString(manager.isGATDebug()));
                 }
@@ -312,9 +310,10 @@ public class COMPSsRuntimeImpl implements COMPSsRuntime, LoaderAPI, FatalErrorHa
             || System.getProperty(COMPSsConstants.COMM_ADAPTOR).isEmpty()) {
             System.setProperty(COMPSsConstants.COMM_ADAPTOR, COMPSsConstants.DEFAULT_ADAPTOR);
         }
-        if (System.getProperty(COMPSsConstants.CONN) == null || System.getProperty(COMPSsConstants.CONN).isEmpty()) {
-            System.setProperty(COMPSsConstants.CONN, COMPSsConstants.DEFAULT_CONNECTOR);
-        }
+        /*
+         * if (System.getProperty(COMPSsConstants.CONN) == null || System.getProperty(COMPSsConstants.CONN).isEmpty()) {
+         * System.setProperty(COMPSsConstants.CONN, COMPSsConstants.DEFAULT_CONNECTOR); }
+         */
         if (System.getProperty(COMPSsConstants.SCHEDULER) == null
             || System.getProperty(COMPSsConstants.SCHEDULER).isEmpty()) {
             System.setProperty(COMPSsConstants.SCHEDULER, COMPSsConstants.DEFAULT_SCHEDULER);
