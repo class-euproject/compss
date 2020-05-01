@@ -19,6 +19,7 @@ package es.bsc.compss.scheduler.paper;
 import es.bsc.compss.components.impl.ResourceScheduler;
 import es.bsc.compss.scheduler.exceptions.ActionNotFoundException;
 import es.bsc.compss.scheduler.types.AllocatableAction;
+import es.bsc.compss.scheduler.types.allocatableactions.StartWorkerAction;
 import es.bsc.compss.scheduler.types.Score;
 import es.bsc.compss.types.TaskDescription;
 import es.bsc.compss.types.allocatableactions.ExecutionAction;
@@ -130,6 +131,11 @@ public class PaperResourceScheduler<T extends WorkerResourceDescription> extends
         super.unscheduleAction(action);
         LOGGER.debug("[PaperResourceScheduler] Unschedule action " + action + " on resource " + getName());
         // delete resource dependencies
+
+        if (action instanceof StartWorkerAction) {
+            LOGGER.debug("[PaperResourceScheduler] Unschedule of startWorkerAction");
+            scheduler.newWorkersAlreadyUp();
+        }
 
         EnhancedSchedulingInformation actionDSI = (EnhancedSchedulingInformation) action.getSchedulingInfo();
         for (AllocatableAction pred : actionDSI.getPredecessors()) {

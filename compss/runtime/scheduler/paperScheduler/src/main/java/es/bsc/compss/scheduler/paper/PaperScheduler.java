@@ -79,6 +79,14 @@ public class PaperScheduler extends TaskScheduler {
 
     private boolean noWorkers;
 
+    private boolean notInit;
+
+    private boolean newWorkers;
+
+    private int numWorkers;
+
+    private int count;
+
 
     /**
      * Constructs a new Paper Scheduler instance.
@@ -90,7 +98,9 @@ public class PaperScheduler extends TaskScheduler {
         this.unassignedActions = new ArrayList<>();
         this.orderInWorkers = new LinkedHashMap<>();
         this.cloudWorkers = new ArrayList<>();
-        noWorkers = true;
+        noWorkers = notInit = true;
+        newWorkers = false;
+        numWorkers = count = 0;
     }
 
     private void readInputFile() {
@@ -160,13 +170,23 @@ public class PaperScheduler extends TaskScheduler {
     public <T extends WorkerResourceDescription> PaperResourceScheduler<T> generateSchedulerForResource(Worker<T> w,
         JSONObject resJSON, JSONObject implJSON) {
         LOGGER.debug("[PaperScheduler] Generate scheduler for resource " + w.getName());
-        noWorkers = false;
+        // noWorkers = false;
+        newWorkers = true;
+        numWorkers++;
         if (w instanceof CloudMethodWorker) {
             LOGGER.debug("[PaperScheduler] CLOUD METHOD WORKER " + w.getName());
             cloudWorkers
                 .add(new AbstractMap.SimpleEntry<>(w.getName(), ((CloudMethodWorker) w).getProvider().getName()));
         }
         return new PaperResourceScheduler<>(w, resJSON, implJSON, this);
+    }
+
+    public void newWorkersAlreadyUp() {
+        count++;
+        if (numWorkers == count) {
+            noWorkers = false;
+            newWorkers = true;
+        }
     }
 
     @Override
@@ -192,17 +212,21 @@ public class PaperScheduler extends TaskScheduler {
     private void initializeHeuristics() {
         List<String> workingWorkerList =
             this.workers.values().stream().map(ResourceScheduler::getName).collect(Collectors.toList());
-        if (workingWorkerList.isEmpty()) { // no workers still available to run
-            noWorkers = true;
-        } else if (lnsnl == null) {
+        /*
+         * if (workingWorkerList.isEmpty()) { // no workers still available to run noWorkers = true; } else
+         */
+        if (lnsnl == null) {
             lnsnl = new LNSNL(workingWorkerList);
             this.numTasks = lnsnl.getNumTasks();
             for (AbstractMap.SimpleEntry<String, String> worker : cloudWorkers) {
                 lnsnl.addResourceCloud(worker.getKey(), worker.getValue());
-                cloudWorkers.remove(worker);
             }
+            cloudWorkers.clear();
             Result res = lnsnl.schedule();
             updateInternalStructures(res);
+            notInit = false;
+            newWorkers = false;
+            launchBlockedActions();
         } else { // lnsnl already set, remove previous tasks
             for (String name : orderInWorkers.keySet()) {
                 orderInWorkers.get(name).replaceAll(e -> null);
@@ -217,6 +241,37 @@ public class PaperScheduler extends TaskScheduler {
             }
             Result res = lnsnl.schedule();
             updateInternalStructures(res);
+            notInit = false;
+            newWorkers = false;
+            launchBlockedActions();
+        }
+    }
+
+    private void launchBlockedActions() {
+        // Set<AllocatableAction> freeActions = new HashSet<>();
+        if (!noWorkers) {
+            TreeMap<Integer, AllocatableAction> freeActions = new TreeMap<>();
+            freeActions.putAll(unassignedActions.stream().collect(Collectors
+                .toMap(a -> ((ExecutionAction) a).getTask().getId(), allocatableAction -> allocatableAction)));
+
+            // Iterator<AllocatableAction> unassignedIterator = this.unassignedActions.iterator();
+            synchronized (this) {
+                // freeActions.addAll(unassignedActions);
+                this.unassignedActions.clear();
+                // while (unassignedIterator.hasNext()) {
+                for (AllocatableAction freeAction : freeActions.values()) {
+                    // AllocatableAction freeAction = unassignedIterator.next();
+                    // unassignedIterator.remove();
+                    try {
+                        LOGGER.debug("[PaperScheduler] Action " + freeAction + " re-launched");
+                        scheduleAction(freeAction, generateActionScore(freeAction));
+                        tryToLaunch(freeAction);
+                    } catch (BlockedActionException bae) {
+                        LOGGER.warn("[PaperScheduler] Action " + freeAction + " blocked");
+                    }
+                }
+                // this.unassignedActions.clear();
+            }
         }
     }
 
@@ -235,13 +290,10 @@ public class PaperScheduler extends TaskScheduler {
         }
         iters = res.getIters();
 
-        for (String worker : mapRes.keySet()) {
-            System.out.print("WORKER " + worker + ": ");
-            for (int task : mapRes.get(worker)) {
-                System.out.print(task + " ");
-            }
-            System.out.println();
-        }
+        /*
+         * for (String worker : mapRes.keySet()) { System.out.print("WORKER " + worker + ": "); for (int task :
+         * mapRes.get(worker)) { System.out.print(task + " "); } System.out.println(); }
+         */
     }
 
     @Override
@@ -249,7 +301,8 @@ public class PaperScheduler extends TaskScheduler {
         LOGGER.debug("[PaperScheduler] Scheduling action " + action);
         if (!noWorkers) {
             int id = ((ExecutionAction) action).getTask().getId();
-            if (id == 1 || (numTasks != 0 && (((id - 1) % numTasks) + 1) == 1)) {
+            // if (id == 1 || (numTasks != 0 && (((id - 1) % numTasks) + 1) == 1 || notInit)) {
+            if (notInit || (!notInit && newWorkers)) {
                 initializeHeuristics();
             }
             id = ((id - 1) % numTasks) + 1;
@@ -263,6 +316,7 @@ public class PaperScheduler extends TaskScheduler {
                 this.unassignedActions.add(action);
             }
         } else {
+            LOGGER.debug("[PaperScheduler] Action " + action + " unassigned due to no workers available.");
             this.unassignedActions.add(action);
         }
     }
@@ -282,20 +336,21 @@ public class PaperScheduler extends TaskScheduler {
             if (pred != null) {
                 Task predTask = ((ExecutionAction) pred).getTask();
                 // add pred/succ resource dependency
-                LOGGER.debug("[PaperScheduler] Task predecessor for task " + id + " is " + predTask.getId());
+                // LOGGER.debug("[PaperScheduler] Task predecessor for task " + id + " is " + predTask.getId());
 
                 if (predTask.getStatus() == TaskState.FINISHED) {
                     // if a previous action has finished, it means that all the others will have finished as well
                     break;
                 }
 
-                LOGGER.debug("[PaperScheduler] Adding dependencies for task " + id + " with task " + predTask.getId());
+                // LOGGER.debug("[PaperScheduler] Adding dependencies for task " + id + " with task " +
+                // predTask.getId());
                 ((EnhancedSchedulingInformation) action.getSchedulingInfo()).addPredecessor(pred);
                 ((EnhancedSchedulingInformation) pred.getSchedulingInfo()).addSuccessor(action);
             } else {
                 // if pred null but not the first position, meaning that previous task not yet received
-                LOGGER.debug("[PaperScheduler] Task " + id
-                    + " not the first one or predecessor not yet created. Adding fake dependencies");
+                // LOGGER.debug("[PaperScheduler] Task " + id
+                // + " not the first one or predecessor not yet created. Adding fake dependencies");
                 OptimizationAction opAction = opActions.get(name);
                 ((EnhancedSchedulingInformation) opAction.getSchedulingInfo()).addSuccessor(action);
                 ((EnhancedSchedulingInformation) action.getSchedulingInfo()).addPredecessor(opAction);
@@ -462,19 +517,14 @@ public class PaperScheduler extends TaskScheduler {
             }
         }
 
-        Iterator<AllocatableAction> unassignedIterator = this.unassignedActions.iterator();
-        synchronized (this) {
-            while (unassignedIterator.hasNext()) {
-                AllocatableAction freeAction = unassignedIterator.next();
-                unassignedIterator.remove();
-                try {
-                    scheduleAction(freeAction, generateActionScore(freeAction));
-                    tryToLaunch(freeAction);
-                } catch (BlockedActionException bae) {
-                    LOGGER.warn("[PrometheusScheduler] Action " + freeAction + " blocked");
-                }
-            }
-        }
+        launchBlockedActions();
+        /*
+         * Iterator<AllocatableAction> unassignedIterator = this.unassignedActions.iterator(); synchronized (this) {
+         * while (unassignedIterator.hasNext()) { AllocatableAction freeAction = unassignedIterator.next();
+         * unassignedIterator.remove(); try { scheduleAction(freeAction, generateActionScore(freeAction));
+         * tryToLaunch(freeAction); } catch (BlockedActionException bae) { LOGGER.warn("[PrometheusScheduler] Action " +
+         * freeAction + " blocked"); } } }
+         */
     }
 
 }
