@@ -320,24 +320,13 @@ public class ResourceManager {
      ********************************************************************
      ********************************************************************
      */
-    /**
-     * Sets the boundaries on the cloud elasticity.
-     *
-     * @param minVMs Lower number of VMs allowed.
-     * @param initialVMs Initial number of VMs.
-     * @param maxVMs Higher number of VMs allowed.
-     */
-    public static void setCloudVMsBoundaries(Integer minVMs, Integer initialVMs, Integer maxVMs) {
-        cloudManager.setInitialVMs(initialVMs);
-        cloudManager.setMinVMs(minVMs);
-        cloudManager.setMaxVMs(maxVMs);
-    }
 
     /**
      * Adds a new Provider to the Cloud section management (and enables the cloud usage).
      *
      * @param providerName Cloud provider name.
-     * @param limitOfVMs Provider limit of VMs.
+     * @param initialVRs Initial amount of virtual resources to deploy.
+     * @param maximumVRs Maximum amount of virtual resources to deploy.
      * @param runtimeConnectorClass Runtime connector abstract class.
      * @param connectorJarPath Path to the connector JAR.
      * @param connectorMainClass Connector main class.
@@ -345,12 +334,12 @@ public class ResourceManager {
      * @return A cloud provider instance.
      * @throws ConnectorException When connector cannot be instantiated.
      */
-    public static CloudProvider registerCloudProvider(String providerName, Integer limitOfVMs,
+    public static CloudProvider registerCloudProvider(String providerName, Integer initialVRs, Integer maximumVRs,
         String runtimeConnectorClass, String connectorJarPath, String connectorMainClass,
         Map<String, String> connectorProperties) throws ConnectorException {
 
-        return cloudManager.registerCloudProvider(providerName, limitOfVMs, runtimeConnectorClass, connectorJarPath,
-            connectorMainClass, connectorProperties);
+        return cloudManager.registerCloudProvider(providerName, initialVRs, maximumVRs, runtimeConnectorClass,
+            connectorJarPath, connectorMainClass, connectorProperties);
     }
 
     /**
@@ -623,32 +612,6 @@ public class ResourceManager {
      * **********************************************************************************************************
      * GETTERS
      ***********************************************************************************************************/
-    /**
-     * Returns the number of maximum cloud VMs.
-     *
-     * @return The number of maximum cloud VMs.
-     */
-    public static int getMaxCloudVMs() {
-        return cloudManager.getMaxVMs();
-    }
-
-    /**
-     * Return the number of initial cloud VMs.
-     *
-     * @return The number of initial cloud VMs.
-     */
-    public static int getInitialCloudVMs() {
-        return cloudManager.getInitialVMs();
-    }
-
-    /**
-     * The number of minimum cloud VMs.
-     *
-     * @return The number of minimum cloud VMs.
-     */
-    public static int getMinCloudVMs() {
-        return cloudManager.getMinVMs();
-    }
 
     /**
      * The number of current VMs.
@@ -782,6 +745,14 @@ public class ResourceManager {
      */
     public static List<ResourceCreationRequest> getPendingCreationRequests() {
         return cloudManager.getPendingRequests();
+    }
+
+    public static int getInitialVRs() {
+        return cloudManager.getProviders().stream().mapToInt(CloudProvider::getInitialVRs).sum();
+    }
+
+    public static int getMaximumVRs() {
+        return cloudManager.getProviders().stream().mapToInt(CloudProvider::getMaximumVRs).sum();
     }
 
     /*

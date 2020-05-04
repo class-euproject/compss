@@ -81,9 +81,6 @@ public class CloudManager {
     private final Map<String, CloudProvider> providers;
 
     private boolean useCloud;
-    private int initialVMs = 0;
-    private int minVMs = 0;
-    private int maxVMs = Integer.MAX_VALUE;
 
 
     /**
@@ -93,99 +90,6 @@ public class CloudManager {
         RUNTIME_LOGGER.info("Initializing Cloud Manager");
         this.useCloud = false;
         this.providers = new HashMap<>();
-    }
-
-    /**
-     * Returns the number of minimum VMs.
-     * 
-     * @return The number of minimum VMs.
-     */
-    public int getMinVMs() {
-        return this.minVMs;
-    }
-
-    /**
-     * Returns the number of maximum VMs.
-     * 
-     * @return The number of maximum VMs.
-     */
-    public int getMaxVMs() {
-        if (this.maxVMs > this.minVMs) {
-            return this.maxVMs;
-        } else {
-            return this.minVMs;
-        }
-    }
-
-    /**
-     * Returns the number of initial VMs.
-     * 
-     * @return The number of initial VMs.
-     */
-    public int getInitialVMs() {
-        int initialVMs = this.initialVMs;
-        if (initialVMs > this.maxVMs) {
-            initialVMs = this.maxVMs;
-        }
-        if (initialVMs < this.minVMs) {
-            initialVMs = this.minVMs;
-        }
-        return initialVMs;
-    }
-
-    /**
-     * Sets a new number of minimum VMs.
-     * 
-     * @param minVMs New number of minimum VMs.
-     */
-    public void setMinVMs(Integer minVMs) {
-        if (minVMs != null) {
-            if (minVMs > 0) {
-                this.minVMs = minVMs;
-                if (minVMs > this.maxVMs) {
-                    ErrorManager.warn("Cloud: MaxVMs (" + this.maxVMs + ") is lower than MinVMs (" + this.minVMs
-                        + "). The current MaxVMs value (" + this.maxVMs + ") is ignored until MinVMs (" + this.minVMs
-                        + ") is lower than it");
-                }
-            } else {
-                this.minVMs = 0;
-            }
-        }
-    }
-
-    /**
-     * Sets a new number of maximum VMs.
-     * 
-     * @param maxVMs New number of maximum VMs.
-     */
-    public void setMaxVMs(Integer maxVMs) {
-        if (maxVMs != null) {
-            if (maxVMs > 0) {
-                this.maxVMs = maxVMs;
-            } else {
-                this.maxVMs = 0;
-            }
-            if (this.minVMs > maxVMs) {
-                ErrorManager.warn("Cloud: MaxVMs (" + this.maxVMs + ") is lower than MinVMs (" + this.minVMs
-                    + "). The current MaxVMs value (" + this.maxVMs + ") is ignored until MinVMs (" + this.minVMs
-                    + ") is higher than it");
-            }
-        }
-    }
-
-    /**
-     * Sets a new number of initial VMs.
-     * 
-     * @param initialVMs New number of initial VMs.
-     */
-    public void setInitialVMs(Integer initialVMs) {
-        if (initialVMs != null) {
-            if (initialVMs > 0) {
-                this.initialVMs = initialVMs;
-            } else {
-                this.initialVMs = 0;
-            }
-        }
     }
 
     /**
@@ -201,7 +105,8 @@ public class CloudManager {
      * Adds a new Provider to the management.
      *
      * @param providerName Provider name.
-     * @param limitOfVMs Provider limit of VMs.
+     * @param initialVRs Provider limit of VMs.
+     * @param maximumVRs Provider limit of VMs.
      * @param runtimeConnectorClass Runtime abstract connector class.
      * @param connectorJarPath Path to the connector JAR.
      * @param connectorMainClass Connector main class.
@@ -209,12 +114,12 @@ public class CloudManager {
      * @return New cloud provider instance.
      * @throws ConnectorException When initializing the CloudProvider.
      */
-    public CloudProvider registerCloudProvider(String providerName, Integer limitOfVMs, String runtimeConnectorClass,
-        String connectorJarPath, String connectorMainClass, Map<String, String> connectorProperties)
-        throws ConnectorException {
+    public CloudProvider registerCloudProvider(String providerName, Integer initialVRs, Integer maximumVRs,
+        String runtimeConnectorClass, String connectorJarPath, String connectorMainClass,
+        Map<String, String> connectorProperties) throws ConnectorException {
 
-        CloudProvider cp = new CloudProvider(providerName, limitOfVMs, runtimeConnectorClass, connectorJarPath,
-            connectorMainClass, connectorProperties);
+        CloudProvider cp = new CloudProvider(providerName, initialVRs, maximumVRs, runtimeConnectorClass,
+            connectorJarPath, connectorMainClass, connectorProperties);
         this.useCloud = true;
         this.providers.put(cp.getName(), cp);
         return cp;

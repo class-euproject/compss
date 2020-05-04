@@ -258,8 +258,8 @@ public class PrometheusScheduler extends TaskScheduler {
             this.numTasks = lnsnl.getNumTasks();
             for (AbstractMap.SimpleEntry<String, String> worker : cloudWorkers) {
                 lnsnl.addResourceCloud(worker.getKey(), worker.getValue());
-                cloudWorkers.remove(worker);
             }
+            cloudWorkers.clear();
             Result res = lnsnl.schedule();
             updateInternalStructures(res);
             notInit = false;

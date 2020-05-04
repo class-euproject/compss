@@ -34,6 +34,7 @@ public class CloudMethodResourceDescription extends MethodResourceDescription {
     // Resource Description
     private String name = "";
     private Integer port = null;
+    private Integer replicas = null;
     private final Map<CloudInstanceTypeDescription, int[]> typeComposition;
     private CloudImageDescription image = null;
 
@@ -94,6 +95,22 @@ public class CloudMethodResourceDescription extends MethodResourceDescription {
         this.image = image;
     }
 
+    /**
+     * Creates a new CloudMethodResourceDescription from the given cloud instance type, image and replica amount.
+     *
+     * @param type Instance type.
+     * @param image Image.
+     * @param replicas Amount of replicas.
+     */
+    public CloudMethodResourceDescription(CloudInstanceTypeDescription type, CloudImageDescription image,
+        int replicas) {
+        super(type.getResourceDescription());
+        this.typeComposition = new HashMap<>();
+        this.typeComposition.put(type, new int[] { 1 });
+        this.image = image;
+        this.replicas = replicas;
+    }
+
     @Override
     public CloudMethodResourceDescription copy() {
         return new CloudMethodResourceDescription(this);
@@ -133,6 +150,15 @@ public class CloudMethodResourceDescription extends MethodResourceDescription {
      */
     public void setPort(Integer port) {
         this.port = port;
+    }
+
+    /**
+     * Gets the amount of replicas to deploy
+     * 
+     * @return Amount of replicas
+     */
+    public Integer getReplicas() {
+        return this.replicas;
     }
 
     /**

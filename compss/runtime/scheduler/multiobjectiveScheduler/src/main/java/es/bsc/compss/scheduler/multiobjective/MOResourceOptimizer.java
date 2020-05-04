@@ -138,12 +138,12 @@ public class MOResourceOptimizer extends ResourceOptimizer {
         LinkedList<Action> actions = new LinkedList<>();
 
         // Generate all possible resource acquisitions
-        if (ResourceManager.getCurrentVMCount() < ResourceManager.getMaxCloudVMs()) {
+        if (ResourceManager.getCurrentVMCount() < ResourceManager.getMaximumVRs()) {
             generatePossibleResourceAcquisitions(actions, allResources, load);
         }
 
         // Generate all possible resource releases
-        if (ResourceManager.getCurrentVMCount() > ResourceManager.getMinCloudVMs()) {
+        if (ResourceManager.getCurrentVMCount() > ResourceManager.getInitialVRs()) {
             generatePossibleResourceReleases(actions, allResources, load);
         }
         return actions;

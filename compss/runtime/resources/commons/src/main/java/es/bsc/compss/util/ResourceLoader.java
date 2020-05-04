@@ -68,7 +68,9 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
+import javax.xml.namespace.QName;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -529,13 +531,6 @@ public class ResourceLoader {
     }
 
     private static boolean loadCloud(CloudType cloud) {
-        Integer initialVMs = project.getInitialVMs(cloud);
-        Integer minVMs = project.getMinVMs(cloud);
-        Integer maxVMs = project.getMaxVMs(cloud);
-
-        // Set parameters to CloudManager taking into account that if they are not defined we load default values
-        ResourceManager.setCloudVMsBoundaries(minVMs, initialVMs, maxVMs);
-
         // Load cloud providers
         boolean cloudEnabled = false;
         List<String> cpResources = resources.getCloudProviders_names();
@@ -569,7 +564,7 @@ public class ResourceLoader {
         /* Add properties information ****************** */
         properties.put(AbstractConnector.PROP_SERVER, resources.getServer(endpoint));
         properties.put(AbstractConnector.PROP_PORT, resources.getPort(endpoint));
-        List<Object> objList = cpProject.getImagesOrInstanceTypesOrLimitOfVMs();
+        List<JAXBElement<?>> objList = cpProject.getImagesOrInstanceTypesOrInitialVRs();
         if (objList != null) {
             for (Object obj : objList) {
                 if (obj instanceof CloudPropertiesType) {
@@ -589,16 +584,17 @@ public class ResourceLoader {
         properties.put(AbstractConnector.PROP_APP_NAME, appName);
 
         /* Add images/instances information ******************** */
-        int limitOfVMs = -1;
+        int initialVRs = -1;
+        int maximumVRs = -1;
         int maxCreationTime = -1; // Seconds
         LinkedList<CloudImageDescription> images = new LinkedList<>();
         LinkedList<CloudInstanceTypeDescription> instanceTypes = new LinkedList<>();
-        objList = cpProject.getImagesOrInstanceTypesOrLimitOfVMs();
+        objList = cpProject.getImagesOrInstanceTypesOrInitialVRs();
         if (objList != null) {
-            for (Object obj : objList) {
-                if (obj instanceof ImagesType) {
+            for (JAXBElement<?> obj : objList) {
+                if (obj.getName().equals(new QName("Images"))) {
                     // Load images
-                    ImagesType imageList = (ImagesType) obj;
+                    ImagesType imageList = (ImagesType) obj.getValue();
                     for (ImageType imProject : imageList.getImage()) {
                         // Try to create image
                         es.bsc.compss.types.resources.jaxb.ImageType imResources =
@@ -615,33 +611,30 @@ public class ResourceLoader {
                             }
                         }
                     }
-                } else {
-                    if (obj instanceof InstanceTypesType) {
-                        // Load images
-                        InstanceTypesType instancesList = (InstanceTypesType) obj;
-                        for (InstanceTypeType instanceProject : instancesList.getInstanceType()) {
-                            // Try to create instance
-                            String instanceName = instanceProject.getName();
-                            es.bsc.compss.types.resources.jaxb.InstanceTypeType instanceResources =
-                                resources.getInstance(cpResources, instanceName);
-                            if (instanceResources != null) {
-                                CloudInstanceTypeDescription cmrd = createInstance(instanceResources);
+                } else if (obj.getName().equals(new QName("InstanceTypes"))) {
+                    // Load images
+                    InstanceTypesType instancesList = (InstanceTypesType) obj.getValue();
+                    for (InstanceTypeType instanceProject : instancesList.getInstanceType()) {
+                        // Try to create instance
+                        String instanceName = instanceProject.getName();
+                        es.bsc.compss.types.resources.jaxb.InstanceTypeType instanceResources =
+                            resources.getInstance(cpResources, instanceName);
+                        if (instanceResources != null) {
+                            CloudInstanceTypeDescription cmrd = createInstance(instanceResources);
 
-                                // Add to instance list
-                                if (cmrd != null) {
-                                    instanceTypes.add(cmrd);
-                                }
-                            } else {
-                                ErrorManager
-                                    .warn("Instance " + instanceName + " not defined in resources.xml. Skipping");
+                            // Add to instance list
+                            if (cmrd != null) {
+                                instanceTypes.add(cmrd);
                             }
+                        } else {
+                            ErrorManager.warn("Instance " + instanceName + " not defined in resources.xml. Skipping");
+                        }
 
-                        }
-                    } else {
-                        if (obj instanceof Integer) { // Limit Of VMs
-                            limitOfVMs = (Integer) obj;
-                        }
                     }
+                } else if (obj.getName().equals(new QName("InitialVRs"))) { // Initial VRs
+                    initialVRs = (Integer) obj.getValue();
+                } else if (obj.getName().equals(new QName("MaximumVRs"))) { // Maximum VRs
+                    maximumVRs = (Integer) obj.getValue();
                 }
             }
         }
@@ -652,8 +645,8 @@ public class ResourceLoader {
         // Add Cloud Provider to CloudManager *****************************************/
         CloudProvider provider;
         try {
-            provider = ResourceManager.registerCloudProvider(cpName, limitOfVMs, runtimeConnector, connectorJarPath,
-                connectorMainClass, properties);
+            provider = ResourceManager.registerCloudProvider(cpName, initialVRs, maximumVRs, runtimeConnector,
+                connectorJarPath, connectorMainClass, properties);
         } catch (Exception e) {
             ErrorManager.warn("Exception loading CloudProvider " + cpName, e);
             return false;

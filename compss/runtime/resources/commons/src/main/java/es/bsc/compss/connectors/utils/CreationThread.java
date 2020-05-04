@@ -117,7 +117,7 @@ public class CreationThread extends Thread {
         if (this.reused == null) { // If the resources does not exist --> Create
             this.setName("Creation Thread " + this.name);
             try {
-                int replicas = 1;
+                int replicas = requested.getReplicas();
                 granted = createResourceOnProvider(requested, replicas);
             } catch (Exception e) {
                 RUNTIME_LOGGER.error(ERROR_ASKING_NEW_RESOURCE + this.provider, e);

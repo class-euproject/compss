@@ -16,6 +16,7 @@
  */
 package es.bsc.compss.types;
 
+import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.connectors.Connector;
 import es.bsc.compss.connectors.ConnectorException;
 import es.bsc.compss.connectors.Cost;
@@ -25,10 +26,13 @@ import es.bsc.compss.types.resources.MethodResourceDescription;
 import es.bsc.compss.types.resources.description.CloudImageDescription;
 import es.bsc.compss.types.resources.description.CloudInstanceTypeDescription;
 import es.bsc.compss.types.resources.description.CloudMethodResourceDescription;
+import es.bsc.compss.util.Classpath;
 import es.bsc.compss.util.CloudImageManager;
 import es.bsc.compss.util.CloudTypeManager;
 import es.bsc.compss.util.CoreManager;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.lang.reflect.Constructor;
 import java.util.Collection;
 import java.util.HashSet;
@@ -48,8 +52,12 @@ public class CloudProvider {
     private static final String WARN_NO_VALID_IMAGE = "WARN: Cannot find a containing/contained instanceType";
     private static final String WARN_CANNOT_TURN_ON = "WARN: Connector cannot turn on resource";
 
+    private static final String CONNECTORS_REL_PATH =
+        File.separator + "Runtime" + File.separator + "cloud-conn" + File.separator;
+    private static final String WARN_NO_COMPSS_HOME = "WARN: COMPSS_HOME not defined, no default connectors loaded";
+    private static final String DEFAULT_COMPSS_HOME = "/opt/COMPSs";
+
     private final String name;
-    private final Integer limitOfVMs;
 
     private final Set<CloudMethodWorker> hostedWorkers;
     private final CloudImageManager imgManager;
@@ -58,6 +66,8 @@ public class CloudProvider {
     private final Connector connector;
     private final Cost cost;
 
+    private Integer initialVRs;
+    private Integer maximumVRs;
     private int currentVMCount;
     private final List<ResourceCreationRequest> pendingRequests;
     private int[] pendingCoreCount;
@@ -70,23 +80,58 @@ public class CloudProvider {
      * Creates a new CloudProvider instance.
      * 
      * @param providerName Cloud Provider name.
-     * @param limitOfVMs Number of maximum VMs.
+     * @param initialVRs Initial amount of VRs.
+     * @param maximumVRs Number of maximum VMs.
      * @param runtimeConnectorClass Runtime connector fully qualified class name.
      * @param connectorJarPath Path to the external connector JAR.
      * @param connectorMainClass External connector fully qualified class name.
      * @param connectorProperties Specific connector properties.
      * @throws ConnectorException When an internal connector exception occurs.
      */
-    public CloudProvider(String providerName, Integer limitOfVMs, String runtimeConnectorClass, String connectorJarPath,
-        String connectorMainClass, Map<String, String> connectorProperties) throws ConnectorException {
+    public CloudProvider(String providerName, Integer initialVRs, Integer maximumVRs, String runtimeConnectorClass,
+        String connectorJarPath, String connectorMainClass, Map<String, String> connectorProperties)
+        throws ConnectorException {
 
         this.name = providerName;
-        this.limitOfVMs = limitOfVMs;
+        this.initialVRs = initialVRs;
+        this.maximumVRs = maximumVRs;
         this.currentVMCount = 0;
         this.hostedWorkers = new HashSet<>();
         this.imgManager = new CloudImageManager();
         this.typeManager = new CloudTypeManager();
 
+        // If runtime connector was not specified with flag --conn, try to load the default connector
+        if (runtimeConnectorClass == null) {
+            try {
+                // Check if its relative to CONNECTORS or absolute to system
+                String jarPath = connectorJarPath;
+                if (!connectorJarPath.startsWith(File.separator)) {
+                    String compssHome = System.getenv(COMPSsConstants.COMPSS_HOME);
+                    if (compssHome == null || compssHome.isEmpty()) {
+                        LOGGER.warn(WARN_NO_COMPSS_HOME);
+                        compssHome = DEFAULT_COMPSS_HOME;
+                    }
+                    jarPath = compssHome + CONNECTORS_REL_PATH + connectorJarPath;
+                }
+
+                // Load jar to classpath
+                LOGGER.debug(" - Loading from : " + jarPath);
+                Classpath.loadPath(jarPath, LOGGER);
+
+                Class providerClass = Class.forName(connectorMainClass);
+                runtimeConnectorClass = ((es.bsc.conn.Connector.RuntimeConnector) providerClass
+                    .getMethod("getRuntimeConnector").invoke(null)).getCanonicalName();
+                if (runtimeConnectorClass == null) {
+                    throw new Exception();
+                }
+            } catch (FileNotFoundException fnfe) {
+                LOGGER.error("Specific connector jar file not found", fnfe);
+                throw new ConnectorException("Specific Connector jar file (" + connectorJarPath + ") not found", fnfe);
+            } catch (Exception e) {
+                throw new ConnectorException("No connector was specified, and the loading of the default connector for "
+                    + "cloud provider " + providerName + " (" + connectorMainClass + ") failed.", e);
+            }
+        }
         // Load Runtime connector implementation that will finally load the
         // infrastructure dependent connector
         try {
@@ -96,9 +141,9 @@ public class CloudProvider {
                 String.class,
                 Map.class };
             Constructor<?> ctor = conClass.getConstructor(parameterTypes);
-            Object conector = ctor.newInstance(this, connectorJarPath, connectorMainClass, connectorProperties);
-            this.connector = (Connector) conector;
-            this.cost = (Cost) conector;
+            Object connector = ctor.newInstance(this, connectorJarPath, connectorMainClass, connectorProperties);
+            this.connector = (Connector) connector;
+            this.cost = (Cost) connector;
         } catch (Exception e) {
             throw new ConnectorException(e);
         }
@@ -333,6 +378,24 @@ public class CloudProvider {
         return this.hostedWorkers;
     }
 
+    /**
+     * Returns the requested initial VR amount.
+     * 
+     * @return The initial VR amount.
+     */
+    public Integer getInitialVRs() {
+        return this.initialVRs;
+    }
+
+    /**
+     * Returns the requested maximum VR amount, if any.
+     * 
+     * @return
+     */
+    public Integer getMaximumVRs() {
+        return this.maximumVRs == null ? 0 : this.maximumVRs;
+    }
+
     /*
      * ------------- State Changes -------------
      */
@@ -370,7 +433,7 @@ public class CloudProvider {
         if (isRequestAccepted) {
             CloudMethodResourceDescription cmrd = rcr.getRequested();
             for (int[] typeCount : cmrd.getTypeComposition().values()) {
-                this.currentVMCount += typeCount[0];
+                this.currentVMCount += typeCount[0] * cmrd.getReplicas();
             }
             this.pendingRequests.add(rcr);
             for (int coreId = 0; coreId < simultaneousCounts.length; coreId++) {
@@ -501,13 +564,7 @@ public class CloudProvider {
      * @return {@literal true} if the Cloud Provider can host more instances, {@literal false} otherwise.
      */
     public boolean canHostMoreInstances() {
-        if (this.limitOfVMs == null) {
-            return true;
-        }
-        if (this.limitOfVMs == -1) {
-            return true;
-        }
-        return this.currentVMCount < this.limitOfVMs;
+        return this.maximumVRs != null && this.maximumVRs != -1 && this.currentVMCount < this.maximumVRs;
     }
 
     /**
@@ -549,7 +606,8 @@ public class CloudProvider {
         sb.append(prefix).append("PROVIDER = [").append("\n");
         sb.append(prefix).append("\t").append("NAME = ").append(this.name).append("\n");
         sb.append(prefix).append("\t").append("CURRENT_VM = ").append(this.currentVMCount).append("\n");
-        sb.append(prefix).append("\t").append("LIMIT_VM = ").append(this.limitOfVMs).append("\n");
+        sb.append(prefix).append("\t").append("INITIAL_VR = ").append(this.initialVRs).append("\n");
+        sb.append(prefix).append("\t").append("MAXIMUM_VR = ").append(this.maximumVRs).append("\n");
         sb.append(this.imgManager.getCurrentState(prefix + "\t"));
         sb.append(this.typeManager.getCurrentState(prefix + "\t"));
 
