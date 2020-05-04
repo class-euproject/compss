@@ -108,6 +108,8 @@ public class PrometheusScheduler extends TaskScheduler {
 
     private boolean noWorkers;
 
+    private boolean notInit;
+
 
     /**
      * Constructs a new Ready Scheduler instance.
@@ -124,6 +126,7 @@ public class PrometheusScheduler extends TaskScheduler {
         this.orderInWorkers = new LinkedHashMap<>();
         this.cloudWorkers = new ArrayList<>();
         noWorkers = true;
+        notInit = true;
     }
 
     private void setUpPrometheusConnection() throws Exception {
@@ -259,6 +262,7 @@ public class PrometheusScheduler extends TaskScheduler {
             }
             Result res = lnsnl.schedule();
             updateInternalStructures(res);
+            notInit = false;
         } else { // lnsnl already set, remove previous tasks
             for (String name : orderInWorkers.keySet()) {
                 orderInWorkers.get(name).replaceAll(e -> null);
@@ -274,6 +278,7 @@ public class PrometheusScheduler extends TaskScheduler {
             Result res = lnsnl.schedule();
             System.out.println("==========================");
             updateInternalStructures(res);
+            notInit = false;
         }
     }
 
@@ -337,7 +342,7 @@ public class PrometheusScheduler extends TaskScheduler {
         if (!noWorkers) {
             int id = ((ExecutionAction) action).getTask().getId();
             // if (id == 1) {
-            if (id == 1 || (numTasks != 0 && (((id - 1) % numTasks) + 1) == 1)) {
+            if (id == 1 || (numTasks != 0 && (((id - 1) % numTasks) + 1) == 1) || notInit) {
                 initializeHeuristics();
             }
             int auxId = ((id - 1) % numTasks) + 1;
