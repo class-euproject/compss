@@ -185,7 +185,7 @@ public class PrometheusResourceScheduler<T extends WorkerResourceDescription> ex
                     long zeroTime = ((DeadlineMonitor) monitor).getProfile().getStartTimeMaster();
                     LOGGER.debug("[PrometheusResourceScheduler] Zero time is " + zeroTime);
                     this.scheduler.setZeroTime(zeroTime);
-                    System.out.println("ZERO TIME IS " + zeroTime);
+                    // System.out.println("ZERO TIME IS " + zeroTime);
                     // TODO: zero time is the first task of the workflow that reaches NIOAdaptor
                     // -> (((taskId - 1) % numTasks) + 1) == 1
                 }

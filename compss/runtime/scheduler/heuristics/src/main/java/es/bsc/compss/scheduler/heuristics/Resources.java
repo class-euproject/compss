@@ -222,7 +222,6 @@ public class Resources {
         for (String name : names) {
             int pos = this.posByName.size();
             this.posByName.put(name, pos);
-            System.out.println("HAHAHA " + name);
         }
     }
 

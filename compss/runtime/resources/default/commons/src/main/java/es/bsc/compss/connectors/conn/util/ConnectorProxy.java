@@ -73,7 +73,7 @@ public class ConnectorProxy {
             throw new ConnectorException(ERROR_NO_CONN);
         }
         StarterCommand starterCMD = getStarterCommand(cid.getAdaptorName(), cid.getMinPort(), name, hardwareDescription,
-            softwareDescription, properties, container);
+            softwareDescription, container);
         Object created;
         try {
             created =
@@ -85,7 +85,7 @@ public class ConnectorProxy {
     }
 
     private StarterCommand getStarterCommand(String adaptorName, int minPort, String name, HardwareDescription hd,
-        SoftwareDescription sd, Map<String, String> properties, boolean container) {
+        SoftwareDescription sd, boolean container) {
         CommAdaptor adaptor = Comm.getAdaptor(adaptorName);
         if (adaptor != null) {
             String hostId = null; // Set by connector

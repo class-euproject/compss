@@ -137,15 +137,11 @@ public class DAG {
             System.out.println();
         }
 
-        System.out.println("C:");
-        for (String worker : this.C.keySet()) {
-            float[] times = this.C.get(worker);
-            System.out.print("Worker " + worker + ": ");
-            for (float time : times) {
-                System.out.print(time + " ");
-            }
-            System.out.println();
-        }
+        /*
+         * System.out.println("C:"); for (String worker : this.C.keySet()) { float[] times = this.C.get(worker);
+         * System.out.print("Worker " + worker + ": "); for (float time : times) { System.out.print(time + " "); }
+         * System.out.println(); }
+         */
     }
 
     public float getSafetyMargin() {

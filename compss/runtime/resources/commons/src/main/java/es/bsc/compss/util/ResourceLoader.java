@@ -566,10 +566,9 @@ public class ResourceLoader {
         properties.put(AbstractConnector.PROP_PORT, resources.getPort(endpoint));
         List<JAXBElement<?>> objList = cpProject.getImagesOrInstanceTypesOrInitialVRs();
         if (objList != null) {
-            for (Object obj : objList) {
-                if (obj instanceof CloudPropertiesType) {
-                    CloudPropertiesType cloudProps = (CloudPropertiesType) obj;
-                    for (CloudPropertyType prop : cloudProps.getProperty()) {
+            for (JAXBElement<?> obj : objList) {
+                if (obj.getName().equals(new QName("Properties"))) {
+                    for (CloudPropertyType prop : ((CloudPropertiesType) obj.getValue()).getProperty()) {
                         // TODO CloudProperties have context, name, value. Consider context (it is ignored now)
                         properties.put(prop.getName(), prop.getValue());
                     }

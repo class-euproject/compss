@@ -276,7 +276,6 @@ public class PrometheusScheduler extends TaskScheduler {
                 lnsnl.addResourceCloud(worker.getKey(), worker.getValue());
             }
             Result res = lnsnl.schedule();
-            System.out.println("==========================");
             updateInternalStructures(res);
             notInit = false;
         }
@@ -299,18 +298,15 @@ public class PrometheusScheduler extends TaskScheduler {
         endTimes = res.getEndTime();
         rub = res.getRub();
 
-        for (String worker : mapRes.keySet()) {
-            System.out.print("WORKER " + worker + ": ");
-            for (int task : mapRes.get(worker)) {
-                System.out.print(task + " ");
-            }
-            System.out.println();
-        }
+        /*
+         * for (String worker : mapRes.keySet()) { System.out.print("WORKER " + worker + ": "); for (int task :
+         * mapRes.get(worker)) { System.out.print(task + " "); } System.out.println(); }
+         */
     }
 
     private void initializeCounter(String id) {
         if (this.deadlines == null) {
-            System.out.println("INITIALIZING METRICS WITH NAME deadlines_missed_" + id);
+            System.out.println("Initializing metrics with name deadlines_missed_" + id);
             this.deadlines =
                 Counter.build().name("deadlines_missed_" + id).help("Total deadlines missed per workflow").register();
 
