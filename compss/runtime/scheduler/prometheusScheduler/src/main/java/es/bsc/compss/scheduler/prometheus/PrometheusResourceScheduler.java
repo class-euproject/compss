@@ -226,7 +226,8 @@ public class PrometheusResourceScheduler<T extends WorkerResourceDescription> ex
                         }).start();
                     } else {
                         System.out.println(ansiGreen + "Deadline has been successful for task " + taskId
-                            + " on resource " + getName() + ansiReset);
+                            + " on resource " + getName() + " (End time: " + (endTime - zeroTime)
+                            + "; Expected end time: " + inTime + ")" + ansiReset);
                     }
                 }
             }

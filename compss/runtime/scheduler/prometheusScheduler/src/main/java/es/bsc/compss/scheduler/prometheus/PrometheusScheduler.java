@@ -366,7 +366,7 @@ public class PrometheusScheduler extends TaskScheduler {
     private void addDependenciesToAction(AllocatableAction action, String name, int id) {
         int pos = this.iters[id - 1];
 
-        LOGGER.debug("[PrometheusScheduler] Position for task " + id + " in ordered list: " + pos);
+        //LOGGER.debug("[PrometheusScheduler] Position for task " + id + " in ordered list: " + pos);
 
         // checks if there are pending dependencies to be added between actions (if opAction has successors)
         fillDependencies(action, name, pos);
@@ -380,15 +380,15 @@ public class PrometheusScheduler extends TaskScheduler {
             if (pred != null) {
                 Task predTask = ((ExecutionAction) pred).getTask();
                 // add pred/succ resource dependency
-                LOGGER.debug("[PrometheusScheduler] Task predecessor for task " + id + " is " + predTask.getId());
+                //LOGGER.debug("[PrometheusScheduler] Task predecessor for task " + id + " is " + predTask.getId());
 
                 if (predTask.getStatus() == TaskState.FINISHED) {
                     // if a previous action has finished, it means that all the others will have finished as well
                     break;
                 }
 
-                LOGGER.debug(
-                    "[PrometheusScheduler] Adding dependencies for task " + id + " with task " + predTask.getId());
+                //LOGGER.debug(
+                //    "[PrometheusScheduler] Adding dependencies for task " + id + " with task " + predTask.getId());
                 ((EnhancedSchedulingInformation) action.getSchedulingInfo()).addPredecessor(pred);
                 ((EnhancedSchedulingInformation) pred.getSchedulingInfo()).addSuccessor(action);
             } else {
