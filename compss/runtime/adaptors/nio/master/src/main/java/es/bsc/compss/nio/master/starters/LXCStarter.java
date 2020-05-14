@@ -6,12 +6,16 @@ import es.bsc.compss.nio.master.NIOWorkerNode;
 import es.bsc.compss.nio.master.handlers.ProcessOut;
 
 import java.io.File;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 
+// TODO: The class should use the REST API if possible, instead of relying on the script
 public class LXCStarter extends ContainerStarter {
 
     private static final String LXC_SCRIPT_PATH = System.getenv("COMPSS_HOME") + File.separator + "Runtime"
@@ -41,6 +45,7 @@ public class LXCStarter extends ContainerStarter {
 
     @Override
     protected String[] getStopCommand(int pid) {
+        // TODO: This should not be using the command
         return new String[] { "lxc",
             "stop",
             this.containerId };
@@ -67,7 +72,17 @@ public class LXCStarter extends ContainerStarter {
             cmd.add("localhost");
         }
         cmd.add("--worker");
-        cmd.add(this.nw.getName());
+        if (this.nameIsIp()) {
+            cmd.add(this.nw.getName());
+        } else {
+            try {
+                InetAddress address = InetAddress.getByName(this.nw.getName());
+                cmd.add(address.getHostAddress());
+            } catch (UnknownHostException e) {
+                throw new InitNodeException(
+                    "Worker name is a hostname instead of an IP, and the name could not be resolved. LXC only works with IPs");
+            }
+        }
         cmd.add("--storage");
         cmd.add("compss:compss:/tmp/COMPSsWorker");
         cmd.add("--as-public-server");
@@ -100,4 +115,12 @@ public class LXCStarter extends ContainerStarter {
         // return containerId;
         return new NIONode(this.nw.getName(), Integer.parseInt(output[output.length - 1]));
     }
+
+    private boolean nameIsIp() {
+        final Pattern pattern =
+            Pattern.compile("^(([01]?\\d\\d?|2[0-4]\\d|25[0-5])\\.){3}([01]?\\d\\d?|2[0-4]\\d|25[0-5])$");
+
+        return pattern.matcher(this.nw.getName()).matches();
+    }
+
 }

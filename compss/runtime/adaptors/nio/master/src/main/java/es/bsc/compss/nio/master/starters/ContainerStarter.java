@@ -134,11 +134,8 @@ public abstract class ContainerStarter extends Starter {
             LOGGER.debug("[ContainerStarter] Container starter for " + name + " registers in the hashmap");
         }
 
-        String containerId = "";
-        // String [] cmd = getStartCommand(minPort, masterName);
-        // LOGGER.info("Starting container with command: " + String.join(" ", cmd));
-
         NIONode n = this.distribute(masterName, minPort, maxPort);
+
         try {
             Thread.sleep(2000);
         } catch (Exception e) {
