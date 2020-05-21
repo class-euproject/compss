@@ -5,6 +5,7 @@ import es.bsc.comm.nio.NIONode;
 import es.bsc.compss.COMPSsConstants;
 import es.bsc.compss.exceptions.InitNodeException;
 import es.bsc.compss.log.Loggers;
+import es.bsc.compss.nio.NIOAgent;
 import es.bsc.compss.nio.commands.CommandCheckWorker;
 import es.bsc.compss.nio.master.NIOAdaptor;
 import es.bsc.compss.nio.master.NIOWorkerNode;
@@ -142,6 +143,7 @@ public abstract class Starter {
 
             // Send command check
             Connection c = NIOAdaptor.getTransferManager().startConnection(n);
+            NIOAgent.registerOngoingCommand(c, cmd);
             c.sendCommand(cmd);
             c.receive();
             c.finishConnection();
@@ -213,8 +215,7 @@ public abstract class Starter {
             // Clean worker working directory
             String jvmWorkerOpts = System.getProperty(COMPSsConstants.WORKER_JVM_OPTS);
             String removeWDFlagDisabled = COMPSsConstants.WORKER_REMOVE_WD + "=false";
-            if ((jvmWorkerOpts != null && jvmWorkerOpts.contains(removeWDFlagDisabled))
-                || this instanceof DockerStarter) {
+            if ((jvmWorkerOpts != null && jvmWorkerOpts.contains(removeWDFlagDisabled))) {
                 // User requested not to clean workers WD
                 LOGGER.warn("RemoveWD set to false. Not Cleaning " + node.getName() + " working directory");
             } else {

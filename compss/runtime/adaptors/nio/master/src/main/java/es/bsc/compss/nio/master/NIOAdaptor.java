@@ -372,7 +372,7 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
         LOGGER.debug("- Workers stopped");
 
         LOGGER.debug("- Shutting down TM...");
-        TM.shutdown(null);
+        TM.shutdown(true, null);
         LOGGER.debug("NIO Adaptor stop completed!");
     }
 
@@ -1067,7 +1067,7 @@ public class NIOAdaptor extends NIOAgent implements CommAdaptor {
         String installDir, String appDir, String classpathFromFile, String pythonpathFromFile, String libPathFromFile,
         int totalCPU, int totalGPU, int totalFPGA, int limitOfTasks, String hostId, boolean container) {
 
-        if ((hostId == null || "null".equals(hostId) || "".equals(hostId)) && Tracer.extraeEnabled()) {
+        if (Tracer.extraeEnabled()) {
             hostId = String.valueOf(NIOTracer.registerHost(workerName, 0));
         }
 

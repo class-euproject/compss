@@ -39,7 +39,8 @@ import es.bsc.compss.nio.commands.CommandShutdown;
 import es.bsc.compss.nio.commands.tracing.CommandGeneratePackage;
 import es.bsc.compss.nio.commands.workerfiles.CommandGenerateWorkerDebugFiles;
 import es.bsc.compss.nio.master.configuration.NIOConfiguration;
-import es.bsc.compss.nio.master.starters.DockerStarter;
+import es.bsc.compss.nio.master.starters.DockerHttpStarter;
+import es.bsc.compss.nio.master.starters.DockerSSHStarter;
 import es.bsc.compss.nio.master.starters.LXCStarter;
 import es.bsc.compss.nio.master.starters.Starter;
 import es.bsc.compss.nio.master.starters.WorkerStarter;
@@ -138,7 +139,11 @@ public class NIOWorkerNode extends COMPSsWorker {
             String engine = Optional.ofNullable(config.getProperty("Engine")).orElse("none").toLowerCase();
             switch (engine) {
                 case "docker":
-                    this.workerStarter = new DockerStarter(this);
+                case "docker-ssh":
+                    this.workerStarter = new DockerSSHStarter(this);
+                    break;
+                case "docker-http":
+                    this.workerStarter = new DockerHttpStarter(this);
                     break;
                 case "lxc":
                     this.workerStarter = new LXCStarter(this);

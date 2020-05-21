@@ -626,7 +626,7 @@ public class NIOWorker extends NIOAgent implements InvocationContext, DataProvid
             closingConnection.finishConnection();
         }
 
-        TM.shutdown(closingConnection);
+        TM.shutdown(true, closingConnection);
 
         // Remove workingDir
         if (REMOVE_WD) {
