@@ -34,7 +34,7 @@ public class CloudMethodResourceDescription extends MethodResourceDescription {
     // Resource Description
     private String name = "";
     private Integer port = null;
-    private Integer replicas = null;
+    private Integer replicas = 0;
     private final Map<CloudInstanceTypeDescription, int[]> typeComposition;
     private CloudImageDescription image = null;
 

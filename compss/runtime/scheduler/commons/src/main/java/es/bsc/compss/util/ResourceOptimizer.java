@@ -1162,7 +1162,7 @@ public class ResourceOptimizer extends Thread {
             RUNTIME_LOGGER.debug("[Resource Optimizer] There are " + images.size() + " images compatible.");
             if (!images.isEmpty()) {
                 CloudImageDescription image = images.get(0);
-                result = new CloudMethodResourceDescription(type, image);
+                result = new CloudMethodResourceDescription(type, image, cp.getInitialVRs());
                 result.setValue(cp.getInstanceCostPerHour(result));
             } else {
                 RUNTIME_LOGGER.warn(WARN_NO_COMPATIBLE_IMAGE);

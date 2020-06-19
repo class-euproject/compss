@@ -135,7 +135,7 @@ public class NIOStarterCommand extends WorkerStarterCommand {
         cmd[nextPosition++] = String.valueOf(NIOAdaptor.MAX_RECEIVE_WORKER);
         cmd[nextPosition++] = workerName;
         cmd[nextPosition++] = String.valueOf(workerPort);
-        cmd[nextPosition++] = masterName;
+        cmd[nextPosition++] = "".equals(masterName) ? "null" : masterName;
         cmd[nextPosition++] = String.valueOf(NIOAdaptor.MASTER_PORT);
         cmd[nextPosition++] = String.valueOf(Comm.getStreamingPort());
 

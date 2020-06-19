@@ -92,7 +92,7 @@ public class ConnectorProxy {
             String workingDir = sd.getInstallation().getWorkingDir() + File.separator
                 + System.getProperty(COMPSsConstants.DEPLOYMENT_ID) + File.separator
                 + hd.getImageName().replaceAll("/", "_");
-            return adaptor.getStarterCommand(name, minPort, Comm.getAppHost().getName(), workingDir,
+            return adaptor.getStarterCommand(name, minPort, System.getProperty(COMPSsConstants.MASTER_NAME), workingDir,
                 sd.getInstallation().getInstallDir(), sd.getInstallation().getAppDir(),
                 sd.getInstallation().getClasspath(), sd.getInstallation().getPythonPath(),
                 sd.getInstallation().getLibraryPath(), hd.getTotalCPUComputingUnits(), hd.getTotalGPUComputingUnits(),
