@@ -1,0 +1,10 @@
+FROM alpine:3.10
+LABEL maintainer="unai.perez@bsc.es"
+
+COPY compss/runtime/adaptors/nio/worker/compss-adaptors-nio-worker.jar /opt/COMPSs/Runtime/adaptors/nio/worker/compss-adaptors-nio-worker.jar
+COPY compss/runtime/config/log/COMPSsWorker* /opt/COMPSs/Runtime/configuration/log/
+COPY compss/runtime/config/log/it-log4j.instrument /opt/COMPSs/Runtime/configuration/log/
+COPY compss/runtime/adaptors/nio/scripts/persistent_worker_* /opt/COMPSs/Runtime/scripts/system/adaptors/nio/
+COPY compss/runtime/adaptors/nio/scripts/setup.sh /opt/COMPSs/Runtime/scripts/system/adaptors/nio/
+RUN apk add --update --no-cache util-linux openjdk8-jre-base bash && \
+    mkdir /compss
