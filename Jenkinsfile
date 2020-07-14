@@ -1,70 +1,53 @@
 pipeline {
-    agent {
-        dockerfile {
-            filename "Dockerfile"
-            additionalBuildArgs "-t bsc-ppc/compss-docker-test:${env.BUILD_NUMBER}"
-            args "--privileged -e DOCKER_HOST=unix:///var/run/docker.sock -u root:root" +
-                    " -v /home/`whoami`/.m2/repository:/root/.m2 -v ${env.WORKSPACE}/junit:/root/junit"
-        }
+    agent any
+
+    tools {
+        // Install the Maven version configured as "M3" and add it to the path.
+        maven "maven"
     }
 
     stages {
-        stage("Environment setup") {
+        stage('Git pull') {
+            steps {
+                git branch: 'ppc/ilp-cloudprovider-merge',
+                    credentialsId: 'ef0a7d37-3ca2-42e7-a953-36d2110d7f98',
+                    url: 'https://gitlab.bsc.es/ppc/software/compss'
+            }
+        }
+        stage('Build runtime') {
+            steps {
+                sh "mvn clean package -DskipTests"
+            }
+        }
+        stage('Build COMPSs Java image') {
             steps {
                 script {
-                    // sh "nohup lxd &"
-                    sh "nohup dockerd &"
+                    // def conn_version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -f \"${WORKSPACE}/compss\" -Dexec.args='${conn.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
+                    def version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -Dexec.args='\${project.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
+                    def arch = sh(returnStdout: true, script: "arch").trim()
+                    def java_image = docker.build("bscppc/compss-worker-${arch}:${version}", "-t bscppc/compss-worker-${arch}:latest -f dockerfiles/Dockerfile_compss .")
+                    docker.withRegistry('https://index.docker.io/v1/', 'unai-docker-hub') {
+                        def java_image = docker.build("bscppc/compss-worker-${arch}:${version}", "-t bscppc/compss-worker-${arch}:latest -f dockerfiles/Dockerfile_compss .")
+                        java_image.push()
+                    }
                 }
             }
         }
-        stage("Compiling") {
+        stage('Build COMPSs Python image') {
             steps {
                 script {
-                    sh "/root/framework/builders/buildlocal -M -B -P -T -A -K -X -d /opt/COMPSs"
+                    def conn_version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -f \"${WORKSPACE}/compss\" -Dexec.args='\${conn.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
+                    def version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -Dexec.args='\${project.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
+                    def arch = sh(returnStdout: true, script: "arch").trim()
+                    def python_image = docker.build("bscppc/pycompss-worker-${arch}:${version}", "-t bscppc/pycompss-worker-${arch}:latest --build-arg CONN_VERSION=${conn_version} -f dockerfiles/Dockerfile_pycompss .")
+                    docker.withRegistry('https://index.docker.io/v1/', 'unai-docker-hub') {
+                        def python_image = docker.build("bscppc/pycompss-worker-${arch}:${version}", "-t bscppc/pycompss-worker-${arch}:latest --build-arg CONN_VERSION=${conn_version} -f dockerfiles/Dockerfile_pycompss .")
+                        python_image.push()
+                    }
                 }
             }
         }
-        stage("Building app and its images") {
-            steps {
-                script {
-                    sh "mvn -f /root/framework/tests/containers/pom.xml -DskipTests " +
-                            "clean package exec:exec@genimage-docker"
-                }
-            }
-        }
-        stage("Testing") {
-            steps {
-                script {
-                    sh "cd /root/framework/tests/containers && mvn test"
-                }
-            }
-        }
+        /* TODO: Docker manifest */
+        /* TODO: Multiarch build */
     }
-
-    post {
-        failure {
-            updateGitlabCommitStatus name: 'Compiling', state: 'failed'
-            emailext attachLog: true,
-                    body: "<b>An error has ocurred</b><br>Project: ${env.JOB_NAME} #${env.BUILD_NUMBER} <br/>" +
-                            "URL:  <a href='${env.BUILD_URL}'>${env.BUILD_URL}</a>",
-                    subject: "ERROR ON ${env.JOB_NAME} #${env.BUILD_NUMBER}",
-                    to: 'unai.perez@bsc.es'
-        }
-        success {
-            sh "cp /root/framework/tests/containers/target/surefire-reports/*.xml /root/junit/"
-            junit "${env.WORKSPACE}/junit"
-            updateGitlabCommitStatus name: 'Compiling', state: 'success'
-        }
-        always{
-            node("master") {
-                deleteDir()
-                sh "docker rmi bsc-ppc/compss-docker-test:${env.BUILD_NUMBER} -f"
-            }
-        }
-    }
-
-    options {
-        gitLabConnection('Gitlab')
-    }
-
 }
