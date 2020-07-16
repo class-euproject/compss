@@ -1,0 +1,54 @@
+# FROM alpine:3.10
+ARG CONN_VERSION
+FROM bscppc/conn-base:${CONN_VERSION} as builder
+
+ENV JAVA_HOME=/usr/lib/jvm/default-jvm
+ENV LD_LIBRARY_PATH=${JAVA_HOME}/jre/lib/amd64/server
+
+ADD . /root/framework
+RUN apk add --no-cache --update bash \
+                                git \
+                                openjdk8 \
+                                python3 \
+                                util-linux \
+                                wget \
+                                maven \
+                                alpine-sdk \
+                                autoconf \
+                                automake \
+                                libtool \
+                                boost \
+                                boost-dev \
+                                libxml2-dev \
+                                tcsh \
+                                python3 \
+                                python \
+                                python3-dev \
+                                python2-dev \
+                                py3-pip && \
+    pip3 install setuptools wheel numpy dill guppy3 && \
+    sed -i 's/#define __NEED_time_t/#define __NEED_time_t\n#define __CPU_SETSIZE 1024/' /usr/include/sched.h && \
+    cd /root/framework/builders && \
+    ./buildlocal -N -b -p --skip-tests && \
+    apk del --no-cache --update git openjdk8 wget maven autoconf automake libtool boost boost-dev libxml2-dev tcsh python python2-dev && \
+    apk add --no-cache --update openjdk8-jre-base
+
+FROM alpine:3.10
+
+ENV JAVA_HOME=/usr/lib/jvm/default-jvm
+ENV LD_LIBRARY_PATH=${JAVA_HOME}/jre/lib/amd64/server
+
+COPY --from=builder /opt/COMPSs/Bindings /opt/COMPSs/Bindings
+COPY --from=builder /opt/COMPSs/Runtime/adaptors/nio/worker /opt/COMPSs/Runtime/adaptors/nio/worker
+COPY --from=builder /opt/COMPSs/Runtime/configuration/log /opt/COMPSs/Runtime/configuration/log
+COPY --from=builder /opt/COMPSs/Runtime/scripts/system/adaptors/nio /opt/COMPSs/Runtime/scripts/system/adaptors/nio
+
+RUN apk add --no-cache --update python3 bash util-linux openjdk8-jre-base py3-pip python3-dev alpine-sdk libtool && \
+    pip3 install wheel numpy dill guppy3 && \
+    apk del --no-cache --update python3-dev alpine-sdk libtool && \
+    ln -s /usr/bin/python3 /usr/bin/python && \
+    rm -rf /opt/COMPSs/Bindings/c /opt/COMPSs/Runtime/scripts/system/adaptors/nio/docker /opt/COMPSs/Runtime/scripts/system/adaptors/nio/lxc && \
+    rm -f /opt/COMPSs/Bindings/python/3/pycompss && \
+    cp -r /opt/COMPSs/Bindings/python/2/pycompss /opt/COMPSs/Bindings/python/3/pycompss && \
+    rm -rf /opt/COMPSs/Bindings/python/2 && \
+    mkdir /compss
