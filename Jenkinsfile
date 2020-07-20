@@ -19,16 +19,41 @@ pipeline {
                 sh "mvn clean package -DskipTests"
             }
         }
-        stage('Build COMPSs Java image') {
+        stage('Build COMPSs Java worker image') {
             steps {
                 script {
                     // def conn_version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -f \"${WORKSPACE}/compss\" -Dexec.args='${conn.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
                     def version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -Dexec.args='\${project.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
                     def arch = sh(returnStdout: true, script: "arch").trim()
-                    def java_image = docker.build("bscppc/compss-worker-${arch}:${version}", "-t bscppc/compss-worker-${arch}:latest -f dockerfiles/Dockerfile_compss .")
+                    def java_image = docker.build("bscppc/compss-worker-${arch}:${version}", "-f dockerfiles/Dockerfile_base_compss .")
                     docker.withRegistry('https://index.docker.io/v1/', 'unai-docker-hub') {
-                        def java_image = docker.build("bscppc/compss-worker-${arch}:${version}", "-t bscppc/compss-worker-${arch}:latest -f dockerfiles/Dockerfile_compss .")
-                        java_image.push()
+                        java_image.push("latest")
+                    }
+                }
+            }
+        }
+        stage('Build COMPSs Python worker image') {
+            steps {
+                script {
+                    def conn_version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -f \"${WORKSPACE}/compss\" -Dexec.args='\${conn.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
+                    def version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -Dexec.args='\${project.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
+                    def arch = sh(returnStdout: true, script: "arch").trim()
+                    def python_image = docker.build("bscppc/pycompss-worker-${arch}:${version}", "--build-arg CONN_VERSION=${conn_version} -f dockerfiles/Dockerfile_base_pycompss .")
+                    docker.withRegistry('https://index.docker.io/v1/', 'unai-docker-hub') {
+                        python_image.push("latest")
+                    }
+                }
+            }
+        }
+        stage('Build COMPSs Java image') {
+            steps {
+                script {
+                    def conn_version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -f \"${WORKSPACE}/compss\" -Dexec.args='\${conn.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
+                    def version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -Dexec.args='\${project.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
+                    def arch = sh(returnStdout: true, script: "arch").trim()
+                    def compss_java_image = docker.build("bscppc/compss:${version}", "--build-arg CONN_VERSION=${conn_version} -f dockerfiles/Dockerfile_compss .")
+                    docker.withRegistry('https://index.docker.io/v1/', 'unai-docker-hub') {
+                        compss_java_image.push("latest")
                     }
                 }
             }
@@ -39,15 +64,22 @@ pipeline {
                     def conn_version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -f \"${WORKSPACE}/compss\" -Dexec.args='\${conn.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
                     def version = sh(returnStdout: true, script: "mvn -q -N -Dexec.executable='echo' -Dexec.args='\${project.version}' org.codehaus.mojo:exec-maven-plugin:1.3.1:exec").trim()
                     def arch = sh(returnStdout: true, script: "arch").trim()
-                    def python_image = docker.build("bscppc/pycompss-worker-${arch}:${version}", "-t bscppc/pycompss-worker-${arch}:latest --build-arg CONN_VERSION=${conn_version} -f dockerfiles/Dockerfile_pycompss .")
+                    def compss_python_image = docker.build("bscppc/pycompss:${version}", "--build-arg CONN_VERSION=${conn_version} -f dockerfiles/Dockerfile_pycompss .")
                     docker.withRegistry('https://index.docker.io/v1/', 'unai-docker-hub') {
-                        def python_image = docker.build("bscppc/pycompss-worker-${arch}:${version}", "-t bscppc/pycompss-worker-${arch}:latest --build-arg CONN_VERSION=${conn_version} -f dockerfiles/Dockerfile_pycompss .")
-                        python_image.push()
+                        compss_python_image.push("latest")
                     }
                 }
             }
         }
         /* TODO: Docker manifest */
         /* TODO: Multiarch build */
+    }
+    post {
+        success {
+            updateGitlabCommitStatus name: 'jenkins', state: 'success'
+        }
+        failure {
+            updateGitlabCommitStatus name: 'jenkins', state: 'failed'
+        }
     }
 }

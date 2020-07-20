@@ -11,7 +11,10 @@ RUN cd /root/framework/builders && \
 	./buildlocal -N --skip-tests
 
 FROM ubuntu:18.04
+WORKDIR /root
 
 COPY --from=builder /opt/COMPSs /opt/COMPSs
+COPY --from=builder /etc/profile.d/compss.sh /etc/profile.d/compss.sh
 RUN apt update && \
-    apt install -y openjdk-8-jre-headless uuid-runtime
+    apt install -y openjdk-8-jre-headless uuid-runtime && \
+    echo ". /etc/profile.d/compss.sh" >> /root/.bashrc
