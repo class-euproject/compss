@@ -452,7 +452,7 @@ install_compss() {
   cp -r "${SOURCES_DIR}/files" "${TMP_DIR}"
   cp -r "${SOURCES_DIR}/maven-plugins" "${TMP_DIR}"
   cp -r "${SOURCES_DIR}/utils" "${TMP_DIR}"
-  cp -r "${SOURCES_DIR}/ilp" "${TMP_DIR}"
+  #cp -r "${SOURCES_DIR}/ilp" "${TMP_DIR}"
   cp "${SOURCES_DIR}/LICENSE" "${TMP_DIR}"
   cp "${SOURCES_DIR}/NOTICE" "${TMP_DIR}"
   cp "${SOURCES_DIR}/pom.xml" "${TMP_DIR}"
@@ -497,7 +497,6 @@ install_compss() {
   cp "${TMP_DIR}/NOTICE" ${targetDir}
   cp "${TMP_DIR}/README.md" ${targetDir}
   cp "${TMP_DIR}/RELEASE_NOTES" ${targetDir}
-  cp -r "${TMP_DIR}/ilp/" ${targetDir}/Runtime/configuration/
 
   # DEPENDENCIES
   echo "--- Copy dependencies"

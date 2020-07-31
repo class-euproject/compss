@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  */
-package es.bsc.compss.scheduler.paper;
+package es.bsc.compss.scheduler.rtheuristics;
 
 import es.bsc.compss.components.impl.ResourceScheduler;
 import es.bsc.compss.scheduler.exceptions.BlockedActionException;

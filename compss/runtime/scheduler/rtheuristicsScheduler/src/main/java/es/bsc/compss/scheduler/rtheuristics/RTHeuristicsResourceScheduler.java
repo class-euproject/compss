@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  */
-package es.bsc.compss.scheduler.paper;
+package es.bsc.compss.scheduler.rtheuristics;
 
 import es.bsc.compss.components.impl.ResourceScheduler;
 import es.bsc.compss.scheduler.exceptions.ActionNotFoundException;
@@ -36,9 +36,9 @@ import java.util.PriorityQueue;
 import org.json.JSONObject;
 
 
-public class PaperResourceScheduler<T extends WorkerResourceDescription> extends ResourceScheduler<T> {
+public class RTHeuristicsResourceScheduler<T extends WorkerResourceDescription> extends ResourceScheduler<T> {
 
-    private PaperScheduler scheduler;
+    private RTHeuristicsScheduler scheduler;
 
 
     /**
@@ -48,7 +48,7 @@ public class PaperResourceScheduler<T extends WorkerResourceDescription> extends
      * @param resJSON Resource JSON file
      * @param implJSON Implementation JSON file
      */
-    public PaperResourceScheduler(Worker<T> w, JSONObject resJSON, JSONObject implJSON, PaperScheduler sched) {
+    public RTHeuristicsResourceScheduler(Worker<T> w, JSONObject resJSON, JSONObject implJSON, RTHeuristicsScheduler sched) {
         super(w, resJSON, implJSON);
         this.scheduler = sched;
     }

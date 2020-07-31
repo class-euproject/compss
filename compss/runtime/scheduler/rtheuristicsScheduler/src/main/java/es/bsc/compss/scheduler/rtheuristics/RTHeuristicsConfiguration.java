@@ -1,11 +1,11 @@
-package es.bsc.compss.scheduler.paper;
+package es.bsc.compss.scheduler.rtheuristics;
 
 import es.bsc.compss.COMPSsConstants;
 import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 
 
-public class PaperConfiguration {
+public class RTHeuristicsConfiguration {
 
     public static String INPUT_FILE = "/tmp/input.txt";
 

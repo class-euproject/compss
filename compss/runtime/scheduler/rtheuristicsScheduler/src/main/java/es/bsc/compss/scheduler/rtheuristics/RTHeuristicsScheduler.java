@@ -14,7 +14,7 @@
  *  limitations under the License.
  *
  */
-package es.bsc.compss.scheduler.paper;
+package es.bsc.compss.scheduler.rtheuristics;
 
 import es.bsc.compss.components.impl.ResourceScheduler;
 import es.bsc.compss.components.impl.TaskScheduler;
@@ -53,7 +53,7 @@ import org.json.JSONObject;
 /**
  * Representation of a Scheduler that considers only ready tasks and sorts them in FIFO mode.
  */
-public class PaperScheduler extends TaskScheduler {
+public class RTHeuristicsScheduler extends TaskScheduler {
 
     // map that relates each task with a predefined resource, according to the output of the Paper
     private LinkedHashMap<Long, String> taskResource;
@@ -91,9 +91,9 @@ public class PaperScheduler extends TaskScheduler {
     /**
      * Constructs a new Paper Scheduler instance.
      */
-    public PaperScheduler() {
+    public RTHeuristicsScheduler() {
         super();
-        PaperConfiguration.load();
+        RTHeuristicsConfiguration.load();
         // readInputFile();
         this.unassignedActions = new ArrayList<>();
         this.orderInWorkers = new LinkedHashMap<>();
@@ -106,8 +106,8 @@ public class PaperScheduler extends TaskScheduler {
     private void readInputFile() {
         taskResource = new LinkedHashMap<>();
         this.numTasks = 0;
-        try (FileReader fr = new FileReader(new File(PaperConfiguration.INPUT_FILE));
-            BufferedReader br = new BufferedReader(fr)) {
+        try (FileReader fr = new FileReader(new File(RTHeuristicsConfiguration.INPUT_FILE));
+             BufferedReader br = new BufferedReader(fr)) {
             String lines;
             String resourceId;
             long taskId;
@@ -167,8 +167,8 @@ public class PaperScheduler extends TaskScheduler {
      * *********************************************************************************************************
      */
     @Override
-    public <T extends WorkerResourceDescription> PaperResourceScheduler<T> generateSchedulerForResource(Worker<T> w,
-        JSONObject resJSON, JSONObject implJSON) {
+    public <T extends WorkerResourceDescription> RTHeuristicsResourceScheduler<T> generateSchedulerForResource(Worker<T> w,
+                                                                                                               JSONObject resJSON, JSONObject implJSON) {
         LOGGER.debug("[PaperScheduler] Generate scheduler for resource " + w.getName());
         // noWorkers = false;
         newWorkers = true;
@@ -178,7 +178,7 @@ public class PaperScheduler extends TaskScheduler {
             cloudWorkers
                 .add(new AbstractMap.SimpleEntry<>(w.getName(), ((CloudMethodWorker) w).getProvider().getName()));
         }
-        return new PaperResourceScheduler<>(w, resJSON, implJSON, this);
+        return new RTHeuristicsResourceScheduler<>(w, resJSON, implJSON, this);
     }
 
     public void newWorkersAlreadyUp() {
